@@ -65,6 +65,30 @@ func TestRunEndToEnd(t *testing.T) {
 	}
 }
 
+func TestRunRejectsUnsafeSessionID(t *testing.T) {
+	inDir := t.TempDir()
+	in := filepath.Join(inDir, "evil.jsonl")
+	line := `{"type":"user","uuid":"u1","isSidechain":false,"cwd":"/tmp","sessionId":"../../outside","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"hi"}}` + "\n"
+	if err := os.WriteFile(in, []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 逸脱先 (outDir の2階層上) もサンドボックス内に収まるよう入れ子にする
+	sandbox := t.TempDir()
+	outDir := filepath.Join(sandbox, "a", "b")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	c := &config{arg: in, format: "md", outDir: outDir, projectsDir: t.TempDir()}
+	err := run(c, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "sessionId") {
+		t.Fatalf("err = %v, want sessionId のエラー", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(sandbox, "outside.md")); statErr == nil {
+		t.Error("出力先ディレクトリの外にファイルが作られている")
+	}
+}
+
 func TestRunStdout(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	c := &config{

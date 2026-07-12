@@ -2,11 +2,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"cctx/internal/locate"
 	"cctx/internal/parse"
@@ -54,6 +56,18 @@ func (c *config) validate() error {
 	}
 	if !c.stdout && !c.latest && c.arg == "" {
 		return fmt.Errorf("入力を指定してください (パス / セッションID / --latest)")
+	}
+	return nil
+}
+
+var safeSessionID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+func validateSessionID(id string) error {
+	if id == "" {
+		return errors.New("sessionId がありません")
+	}
+	if !safeSessionID.MatchString(id) {
+		return fmt.Errorf("sessionId を出力ファイル名に使用できません: %q", id)
 	}
 	return nil
 }
@@ -108,6 +122,11 @@ func run(c *config, stdout, stderr io.Writer) error {
 
 	if c.stdout {
 		return render.Markdown(stdout, session, c.tmplMD)
+	}
+
+	// sessionId は入力 JSONL 由来の値なので、出力ファイル名に使う前に許可文字を制限する
+	if err := validateSessionID(session.ID); err != nil {
+		return err
 	}
 
 	outDir := c.outDir
