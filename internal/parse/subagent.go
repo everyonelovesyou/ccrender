@@ -2,6 +2,7 @@ package parse
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +68,10 @@ func subagentAnswer(path string) (string, error) {
 		if len(parts) > 0 {
 			answer = strings.Join(parts, "\n\n")
 		}
+	}
+	if answer == "" {
+		// 空の回答を正常な記録として登録すると縮退経路が働かないため、明示エラーにする
+		return "", fmt.Errorf("assistant のテキストがありません: %s", path)
 	}
 	return answer, nil
 }

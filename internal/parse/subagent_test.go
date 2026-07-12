@@ -2,6 +2,7 @@ package parse
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,66 @@ func TestSubagentDeniedIsPermissionDeny(t *testing.T) {
 	}
 	if strings.Contains(warn.String(), "サブエージェント記録が見つかりません") {
 		t.Errorf("拒否された Agent に対して誤ったサブエージェント警告が出た: %q", warn.String())
+	}
+}
+
+func TestSubagentAnswerErrorsWithoutAssistantText(t *testing.T) {
+	cases := []struct {
+		name  string
+		lines string
+	}{
+		{"assistant レコードがない",
+			`{"type":"user","uuid":"su1","isSidechain":true,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"do it"}}
+`},
+		{"assistant はあるが text ブロックがない",
+			`{"type":"user","uuid":"su1","isSidechain":true,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"do it"}}
+{"type":"assistant","uuid":"sa1","isSidechain":true,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"stu1","name":"Bash","input":{"command":"ls"}}]}}
+`},
+	}
+	for _, c := range cases {
+		path := t.TempDir() + "/agent-x.jsonl"
+		if err := writeFile(path, c.lines); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := subagentAnswer(path); err == nil {
+			t.Errorf("%s: エラーになっていない", c.name)
+		}
+	}
+}
+
+func TestSubagentEmptyRecordFallsBackWithWarning(t *testing.T) {
+	// subagents/ の記録はあるが assistant テキストが空: 本流 tool_result で縮退し警告
+	dir := t.TempDir()
+	path := dir + "/empty-sub.jsonl"
+	lines := `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tux","name":"Agent","input":{"description":"調査","prompt":"do it","subagent_type":"general-purpose"}}]}}
+{"type":"user","uuid":"u1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tux","is_error":false,"content":[{"type":"text","text":"main answer"}]}]}}
+`
+	if err := writeFile(path, lines); err != nil {
+		t.Fatal(err)
+	}
+	subDir := dir + "/empty-sub/subagents"
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(subDir+"/agent-xyz.meta.json", `{"agentType":"general-purpose","toolUseId":"tux"}`); err != nil {
+		t.Fatal(err)
+	}
+	// assistant テキストが一件もないサブエージェント JSONL
+	if err := writeFile(subDir+"/agent-xyz.jsonl", `{"type":"user","uuid":"su1","isSidechain":true,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"do it"}}
+`); err != nil {
+		t.Fatal(err)
+	}
+	var warn bytes.Buffer
+	s, err := ParseFile(path, &warn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := eventsOfKind(s, KindSubagentCall)
+	if len(got) != 1 || got[0].Subagent.Answer != "main answer" {
+		t.Fatalf("縮退動作: %+v", got)
+	}
+	if !strings.Contains(warn.String(), "サブエージェント記録が見つかりません") {
+		t.Errorf("警告が出ていない: %q", warn.String())
 	}
 }
 
