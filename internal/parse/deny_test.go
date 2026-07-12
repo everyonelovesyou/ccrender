@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"io"
 	"testing"
 	"time"
 )
@@ -61,7 +62,7 @@ func TestPermissionDenyEvent(t *testing.T) {
 func TestDenyRequiresIsError(t *testing.T) {
 	// is_error=false で文言に前方一致する行 (引用) は検出しない
 	b := contentBlock{IsError: false, Content: []byte(`"The user doesn't want to proceed with this tool use."`)}
-	ev := toolEvent(contentBlock{Type: "tool_use", ID: "x", Name: "Bash"}, timeZero(), map[string]contentBlock{"x": b})
+	ev := toolEvent(contentBlock{Type: "tool_use", ID: "x", Name: "Bash"}, timeZero(), map[string]contentBlock{"x": b}, nil, io.Discard)
 	if ev.Kind != KindToolCall {
 		t.Errorf("引用行を拒否として誤検出: %v", ev.Kind)
 	}
@@ -70,7 +71,7 @@ func TestDenyRequiresIsError(t *testing.T) {
 func TestDenyArrayContentNotDetected(t *testing.T) {
 	// content が配列形の拒否文言はクラッシュせず非該当
 	b := contentBlock{IsError: true, Content: []byte(`[{"type":"text","text":"The user doesn't want to proceed with this tool use."}]`)}
-	ev := toolEvent(contentBlock{Type: "tool_use", ID: "x", Name: "Bash"}, timeZero(), map[string]contentBlock{"x": b})
+	ev := toolEvent(contentBlock{Type: "tool_use", ID: "x", Name: "Bash"}, timeZero(), map[string]contentBlock{"x": b}, nil, io.Discard)
 	if ev.Kind != KindToolCall {
 		t.Errorf("配列形を拒否として検出: %v", ev.Kind)
 	}

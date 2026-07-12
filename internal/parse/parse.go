@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -21,7 +22,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 	}
 	defer f.Close()
 
-	records, skipped, err := readRecords(f)
+	records, skipped, err := readRecords(f, false)
 	if err != nil {
 		return nil, err
 	}
@@ -30,6 +31,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 	}
 
 	results := collectToolResults(records)
+	subs := loadSubagents(strings.TrimSuffix(path, ".jsonl") + "/subagents")
 	s := &Session{}
 	for _, rec := range records {
 		if s.ID == "" {
@@ -45,14 +47,16 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 			}
 			s.EndedAt = ts
 		}
-		s.Events = append(s.Events, buildEvents(rec, ts, results)...)
+		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, warn)...)
 	}
 	s.Stats = computeStats(s.Events, skipped)
 	return s, nil
 }
 
-// readRecords は全行をデコードする。壊れた行と isSidechain=true はスキップして数える。
-func readRecords(f io.Reader) ([]rawRecord, int, error) {
+// readRecords は全行をデコードする。壊れた行はスキップして数える。
+// keepSidechain が false のとき isSidechain=true の行もスキップする (本流の読み込み用)。
+// keepSidechain が true のときは全レコードを保持する (サブエージェント JSONL 用)。
+func readRecords(f io.Reader, keepSidechain bool) ([]rawRecord, int, error) {
 	r := bufio.NewReaderSize(f, 1<<20)
 	var records []rawRecord
 	skipped := 0
@@ -62,7 +66,7 @@ func readRecords(f io.Reader) ([]rawRecord, int, error) {
 			var rec rawRecord
 			if json.Unmarshal(line, &rec) != nil {
 				skipped++
-			} else if !rec.IsSidechain {
+			} else if keepSidechain || !rec.IsSidechain {
 				records = append(records, rec)
 			}
 		}
@@ -101,7 +105,7 @@ func collectToolResults(records []rawRecord) map[string]contentBlock {
 }
 
 // buildEvents は1レコードをイベント列へ変換する。
-func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock) []Event {
+func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) []Event {
 	var events []Event
 	switch rec.Type {
 	case "user":
@@ -121,15 +125,18 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock) [
 					events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
 				}
 			case "tool_use":
-				events = append(events, toolEvent(b, ts, results))
+				events = append(events, toolEvent(b, ts, results, subs, warn))
 			}
 		}
 	}
 	return events
 }
 
-// toolEvent は tool_use ブロックを ToolCall イベントへ変換する。
-func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock) Event {
+// toolEvent は tool_use ブロックを ToolCall (または Agent の場合 SubagentCall) イベントへ変換する。
+func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) Event {
+	if b.Name == "Agent" {
+		return subagentEvent(b, ts, results, subs, warn)
+	}
 	tc := &ToolCall{
 		Name:    b.Name,
 		Summary: toolSummary(b.Name, b.Input),
@@ -150,6 +157,28 @@ func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock) Ev
 		}
 	}
 	return Event{Kind: kind, Timestamp: ts, Tool: tc}
+}
+
+// subagentEvent は Agent tool_use を SubagentCall イベントへ変換する。
+func subagentEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) Event {
+	var input struct {
+		Prompt       string `json:"prompt"`
+		SubagentType string `json:"subagent_type"`
+	}
+	_ = json.Unmarshal(b.Input, &input)
+	sub, found := subs[b.ID]
+	sub.Prompt = input.Prompt
+	if sub.AgentType == "" {
+		sub.AgentType = input.SubagentType
+	}
+	if !found {
+		// 明示的な縮退: 本流 tool_result の text で代替し、警告を出す (無言のフォールバックはしない)
+		fmt.Fprintf(warn, "cctx: 警告: サブエージェント記録が見つかりません (tool_use %s)。本流の tool_result で代替します\n", b.ID)
+		if res, ok := results[b.ID]; ok {
+			sub.Answer = res.resultText()
+		}
+	}
+	return Event{Kind: KindSubagentCall, Timestamp: ts, Subagent: &sub}
 }
 
 func computeStats(events []Event, skipped int) Stats {
