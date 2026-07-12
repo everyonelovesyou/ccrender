@@ -128,6 +128,11 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 				events = append(events, toolEvent(b, ts, results, subs, warn))
 			}
 		}
+	case "system":
+		// 節目情報は最小限 (設計書)。現状は compact 境界のみ
+		if rec.Subtype == "compact_boundary" {
+			events = append(events, Event{Kind: KindSystemNote, Timestamp: ts, Text: "コンテキスト圧縮 (compact)"})
+		}
 	}
 	return events
 }

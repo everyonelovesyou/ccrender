@@ -1,0 +1,30 @@
+package parse
+
+import "testing"
+
+func TestSystemNoteCompactBoundary(t *testing.T) {
+	s := mustParse(t)
+	got := eventsOfKind(s, KindSystemNote)
+	if len(got) != 1 {
+		t.Fatalf("SystemNote %d件", len(got))
+	}
+	if got[0].Text != "コンテキスト圧縮 (compact)" {
+		t.Errorf("Text = %q", got[0].Text)
+	}
+}
+
+func TestStats(t *testing.T) {
+	s := mustParse(t)
+	want := Stats{
+		UserMessages:      1,
+		AssistantMessages: 1,
+		ToolCalls:         2, // Bash (結果あり) + Read (結果なし)
+		PermissionDenies:  1, // Edit
+		SystemNotes:       1, // compact_boundary
+		SubagentCalls:     1, // Agent
+		SkippedLines:      1, // 壊れ行
+	}
+	if s.Stats != want {
+		t.Errorf("Stats = %+v, want %+v", s.Stats, want)
+	}
+}
