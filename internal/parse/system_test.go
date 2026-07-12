@@ -22,6 +22,7 @@ func TestStats(t *testing.T) {
 		PermissionDenies:  1, // Edit
 		SystemNotes:       1, // compact_boundary
 		SubagentCalls:     1, // Agent
+		SkillInvocations:  2, // ユーザー呼び出し (/ohayou) + エージェント発動 (Skill tool_use)
 		SkippedLines:      1, // 壊れ行
 	}
 	if s.Stats != want {

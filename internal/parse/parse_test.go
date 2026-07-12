@@ -40,8 +40,8 @@ func TestSessionHeader(t *testing.T) {
 	if !s.StartedAt.Equal(wantStart) {
 		t.Errorf("StartedAt = %v", s.StartedAt)
 	}
-	// 末尾レコードは isSidechain (無視) なので、直前の a4 (00:00:09Z) が EndedAt
-	wantEnd := time.Date(2026, 7, 12, 0, 0, 9, 0, time.UTC)
+	// 末尾はエージェント発動のスキル展開エントリ (00:00:14Z)
+	wantEnd := time.Date(2026, 7, 12, 0, 0, 14, 0, time.UTC)
 	if !s.EndedAt.Equal(wantEnd) {
 		t.Errorf("EndedAt = %v", s.EndedAt)
 	}
