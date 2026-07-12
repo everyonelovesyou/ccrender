@@ -7,14 +7,17 @@ import (
 
 // rawRecord はトランスクリプト JSONL の1行。出力に使わないフィールドは持たない。
 type rawRecord struct {
-	Type        string      `json:"type"`
-	Subtype     string      `json:"subtype"`
-	UUID        string      `json:"uuid"`
-	IsSidechain bool        `json:"isSidechain"`
-	CWD         string      `json:"cwd"`
-	SessionID   string      `json:"sessionId"`
-	Timestamp   string      `json:"timestamp"`
-	Message     *rawMessage `json:"message"`
+	Type            string      `json:"type"`
+	Subtype         string      `json:"subtype"`
+	UUID            string      `json:"uuid"`
+	ParentUUID      string      `json:"parentUuid"`
+	IsSidechain     bool        `json:"isSidechain"`
+	IsMeta          bool        `json:"isMeta"`
+	SourceToolUseID string      `json:"sourceToolUseID"`
+	CWD             string      `json:"cwd"`
+	SessionID       string      `json:"sessionId"`
+	Timestamp       string      `json:"timestamp"`
+	Message         *rawMessage `json:"message"`
 }
 
 type rawMessage struct {

@@ -14,6 +14,7 @@ const (
 	KindPermissionDeny   EventKind = "permission_deny"
 	KindSystemNote       EventKind = "system_note"
 	KindSubagentCall     EventKind = "subagent_call"
+	KindSkillInvocation  EventKind = "skill_invocation"
 )
 
 type Session struct {
@@ -32,15 +33,17 @@ type Stats struct {
 	PermissionDenies  int
 	SystemNotes       int
 	SubagentCalls     int
+	SkillInvocations  int
 	SkippedLines      int // パースできなかった行数
 }
 
 type Event struct {
 	Kind      EventKind
 	Timestamp time.Time
-	Text      string    // UserMessage / AssistantMessage / SystemNote の本文
-	Tool      *ToolCall // Kind が ToolCall / PermissionDeny のとき非 nil
-	Subagent  *Subagent // Kind が SubagentCall のとき非 nil
+	Text      string           // UserMessage / AssistantMessage / SystemNote の本文
+	Tool      *ToolCall        // Kind が ToolCall / PermissionDeny のとき非 nil
+	Subagent  *Subagent        // Kind が SubagentCall のとき非 nil
+	Skill     *SkillInvocation // Kind が SkillInvocation のとき非 nil
 }
 
 type ToolCall struct {
@@ -58,4 +61,11 @@ type Subagent struct {
 	AgentType string
 	Prompt    string // 依頼プロンプト全文
 	Answer    string // 最終回答全文
+}
+
+type SkillInvocation struct {
+	Name    string // スキル名。エージェント発動は input.skill、ユーザー呼び出しは <command-name> の先頭 "/" を除いた形
+	Path    string // "Base directory for this skill:" の絶対パス
+	ByUser  bool   // true ならユーザー呼び出し (スラッシュコマンド)
+	Command string // ByUser のとき「/name 引数」の再現文字列。エージェント発動では空
 }
