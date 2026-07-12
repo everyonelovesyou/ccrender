@@ -1,0 +1,69 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cctx — {{.ID}}</title>
+<style>
+  :root { --user: #e8f0fe; --assistant: #f1f3f4; --deny: #fdecea; --note: #fef7e0; }
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; max-width: 60rem;
+         margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #202124; }
+  header { border-bottom: 2px solid #dadce0; margin-bottom: 1.5rem; padding-bottom: 1rem; }
+  header dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.2rem 1rem; margin: 0; }
+  header dt { color: #5f6368; }
+  .msg { border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; white-space: pre-wrap; }
+  .user { background: var(--user); }
+  .assistant { background: var(--assistant); }
+  .tool { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; }
+  .tool summary, .sub summary { cursor: pointer; }
+  .tool pre, .sub pre { background: #202124; color: #e8eaed; padding: 0.75rem;
+                        border-radius: 0.5rem; overflow-x: auto; white-space: pre-wrap; }
+  .deny { background: var(--deny); border-left: 4px solid #d93025; padding: 0.5rem 1rem;
+          margin: 0.75rem 0 0.75rem 1rem; }
+  .note { background: var(--note); text-align: center; border-radius: 0.5rem;
+          padding: 0.3rem; margin: 1rem 0; color: #5f6368; }
+  .sub { border: 1px solid #dadce0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+  .sub .label { font-weight: bold; color: #5f6368; margin-top: 0.5rem; }
+  .sub .body { white-space: pre-wrap; }
+  .ts { color: #80868b; font-size: 0.8rem; }
+</style>
+<header>
+  <h1>セッション {{.ID}}</h1>
+  <dl>
+    <dt>プロジェクト</dt><dd>{{.ProjectPath}}</dd>
+    <dt>期間</dt><dd>{{.StartedAt.Format "2006-01-02 15:04"}} 〜 {{.EndedAt.Format "2006-01-02 15:04"}}</dd>
+    <dt>イベント</dt><dd>user {{.Stats.UserMessages}} / assistant {{.Stats.AssistantMessages}} / ツール {{.Stats.ToolCalls}} / 🚫 {{.Stats.PermissionDenies}} / 🤝 {{.Stats.SubagentCalls}}</dd>
+  </dl>
+</header>
+<main>
+{{- range .Events}}
+{{- if eq .Kind "user_message"}}
+<div class="msg user"><span class="ts">👤 {{.Timestamp.Format "15:04"}}</span>
+{{.Text}}</div>
+{{- else if eq .Kind "assistant_message"}}
+<div class="msg assistant"><span class="ts">🤖 {{.Timestamp.Format "15:04"}}</span>
+{{.Text}}</div>
+{{- else if eq .Kind "tool_call"}}
+<details class="tool"><summary>🔧 <b>{{.Tool.Name}}</b> <code>{{firstLine .Tool.Summary}}</code></summary>
+<pre>{{.Tool.Input}}</pre>
+{{- if .Tool.HasResult}}
+<pre>{{.Tool.Result}}</pre>
+{{- else}}
+<p>(結果なし)</p>
+{{- end}}
+</details>
+{{- else if eq .Kind "permission_deny"}}
+<div class="deny">🚫 <b>拒否</b> {{.Tool.Name}} <code>{{firstLine .Tool.Summary}}</code>
+{{- if .Tool.DenyReason}}
+<blockquote>{{.Tool.DenyReason}}</blockquote>
+{{- end}}
+</div>
+{{- else if eq .Kind "subagent_call"}}
+<div class="sub">🤝 <b>サブエージェント</b> ({{.Subagent.AgentType}})
+<div class="label">依頼</div>
+<details><summary>{{firstLine .Subagent.Prompt}}</summary><div class="body">{{.Subagent.Prompt}}</div></details>
+<div class="label">最終回答</div>
+<div class="body">{{.Subagent.Answer}}</div>
+</div>
+{{- else if eq .Kind "system_note"}}
+<div class="note">📍 {{.Text}}</div>
+{{- end}}
+{{- end}}
+</main>

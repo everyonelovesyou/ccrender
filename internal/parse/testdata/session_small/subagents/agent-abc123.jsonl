@@ -1,0 +1,2 @@
+{"type":"user","uuid":"sa-u1","isSidechain":true,"agentId":"abc123","cwd":"/Users/example/proj","sessionId":"sess-0001","timestamp":"2026-07-12T00:00:06Z","message":{"role":"user","content":"Please investigate the repository structure."}}
+{"type":"assistant","uuid":"sa-a1","isSidechain":true,"agentId":"abc123","cwd":"/Users/example/proj","sessionId":"sess-0001","timestamp":"2026-07-12T00:00:07Z","message":{"role":"assistant","content":[{"type":"text","text":"Investigation summary: the repo has 3 packages."}]}}

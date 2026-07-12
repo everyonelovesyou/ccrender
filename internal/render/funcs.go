@@ -1,0 +1,34 @@
+// Package render は Session をテンプレートで markdown / HTML へ整形する。
+package render
+
+import (
+	"fmt"
+	"strings"
+	"text/template"
+)
+
+// TruncateLines は s を先頭 n 行に切り詰め、省略行数を付記する。
+// 引数順はテンプレートのパイプ記法 {{.Result | truncateLines 20}} に合わせて n が先。
+func TruncateLines(n int, s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) <= n {
+		return s
+	}
+	return strings.Join(lines[:n], "\n") + fmt.Sprintf("\n… (残り%d行省略)", len(lines)-n)
+}
+
+// FirstLine は先頭1行を返す (HTML の <details> サマリー用)。
+func FirstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
+func Funcs() template.FuncMap {
+	return template.FuncMap{
+		"truncateLines": TruncateLines,
+		"firstLine":     FirstLine,
+	}
+}

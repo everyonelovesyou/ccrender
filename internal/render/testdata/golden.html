@@ -1,0 +1,84 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cctx — sess-0001</title>
+<style>
+  :root { --user: #e8f0fe; --assistant: #f1f3f4; --deny: #fdecea; --note: #fef7e0; }
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; max-width: 60rem;
+         margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #202124; }
+  header { border-bottom: 2px solid #dadce0; margin-bottom: 1.5rem; padding-bottom: 1rem; }
+  header dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.2rem 1rem; margin: 0; }
+  header dt { color: #5f6368; }
+  .msg { border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; white-space: pre-wrap; }
+  .user { background: var(--user); }
+  .assistant { background: var(--assistant); }
+  .tool { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; }
+  .tool summary, .sub summary { cursor: pointer; }
+  .tool pre, .sub pre { background: #202124; color: #e8eaed; padding: 0.75rem;
+                        border-radius: 0.5rem; overflow-x: auto; white-space: pre-wrap; }
+  .deny { background: var(--deny); border-left: 4px solid #d93025; padding: 0.5rem 1rem;
+          margin: 0.75rem 0 0.75rem 1rem; }
+  .note { background: var(--note); text-align: center; border-radius: 0.5rem;
+          padding: 0.3rem; margin: 1rem 0; color: #5f6368; }
+  .sub { border: 1px solid #dadce0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+  .sub .label { font-weight: bold; color: #5f6368; margin-top: 0.5rem; }
+  .sub .body { white-space: pre-wrap; }
+  .ts { color: #80868b; font-size: 0.8rem; }
+</style>
+<header>
+  <h1>セッション sess-0001</h1>
+  <dl>
+    <dt>プロジェクト</dt><dd>/Users/example/proj</dd>
+    <dt>期間</dt><dd>2026-07-12 00:00 〜 2026-07-12 00:00</dd>
+    <dt>イベント</dt><dd>user 1 / assistant 1 / ツール 2 / 🚫 1 / 🤝 1</dd>
+  </dl>
+</header>
+<main>
+<div class="msg user"><span class="ts">👤 00:00</span>
+こんにちは</div>
+<div class="msg assistant"><span class="ts">🤖 00:00</span>
+確認します</div>
+<details class="tool"><summary>🔧 <b>Bash</b> <code>seq 1 25</code></summary>
+<pre>{
+  &#34;command&#34;: &#34;seq 1 25&#34;
+}</pre>
+<pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25</pre>
+</details>
+<div class="deny">🚫 <b>拒否</b> Edit <code>/tmp/x.txt</code>
+<blockquote>こっちは触らないで</blockquote>
+</div>
+<div class="sub">🤝 <b>サブエージェント</b> (general-purpose)
+<div class="label">依頼</div>
+<details><summary>Please investigate.</summary><div class="body">Please investigate.</div></details>
+<div class="label">最終回答</div>
+<div class="body">Investigation summary.</div>
+</div>
+<div class="note">📍 コンテキスト圧縮 (compact)</div>
+<details class="tool"><summary>🔧 <b>Read</b> <code>/tmp/y.txt</code></summary>
+<pre>{}</pre>
+<p>(結果なし)</p>
+</details>
+</main>
