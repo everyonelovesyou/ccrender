@@ -2,6 +2,7 @@ package parse
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -90,5 +91,99 @@ func TestCollectSkillIndex(t *testing.T) {
 	}
 	if _, ok := idx.commands["u1"]; ok {
 		t.Error("通常発話が commands に入っている")
+	}
+}
+
+// parseLines は JSONL 行群を一時ファイルに書いて ParseFile する。
+func parseLines(t *testing.T, lines ...string) *Session {
+	t.Helper()
+	path := t.TempDir() + "/s.jsonl"
+	if err := writeFile(path, strings.Join(lines, "\n")+"\n"); err != nil {
+		t.Fatal(err)
+	}
+	s, err := ParseFile(path, nil)
+	if err != nil {
+		t.Fatalf("ParseFile: %v", err)
+	}
+	return s
+}
+
+const (
+	agentSkillUse        = `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Skill","input":{"skill":"superpowers:brainstorming"}}]}}`
+	agentSkillExpansion  = `{"type":"user","uuid":"sk1","parentUuid":"a1","sourceToolUseID":"tu1","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /Users/example/plug/skills/brainstorming\n\n# 手順\n\nこの本文は出力に現れてはならない"}]}}`
+)
+
+func TestAgentSkillInvocation(t *testing.T) {
+	s := parseLines(t, agentSkillUse, agentSkillExpansion)
+
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 {
+		t.Fatalf("skill_invocation %d件: %+v", len(invs), s.Events)
+	}
+	inv := invs[0].Skill
+	if inv.Name != "superpowers:brainstorming" || inv.Path != "/Users/example/plug/skills/brainstorming" {
+		t.Errorf("SkillInvocation = %+v", inv)
+	}
+	if inv.ByUser || inv.Command != "" {
+		t.Errorf("エージェント発動なのに ByUser/Command が設定されている: %+v", inv)
+	}
+	// tool_call と二重計上しない
+	if len(eventsOfKind(s, KindToolCall)) != 0 {
+		t.Error("Skill tool_use が tool_call としても出ている")
+	}
+	if s.Stats.SkillInvocations != 1 || s.Stats.ToolCalls != 0 {
+		t.Errorf("Stats = %+v", s.Stats)
+	}
+	// 展開本文が user_message として漏れない
+	for _, e := range eventsOfKind(s, KindUserMessage) {
+		if strings.Contains(e.Text, "現れてはならない") {
+			t.Error("展開本文が user_message に漏れている")
+		}
+	}
+}
+
+func TestAgentSkillEmptyNameFallsBackToBasename(t *testing.T) {
+	use := `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Skill","input":{}}]}}`
+	s := parseLines(t, use, agentSkillExpansion)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 || invs[0].Skill.Name != "brainstorming" {
+		t.Fatalf("basename 縮退が働いていない: %+v", invs)
+	}
+}
+
+func TestSkillUseWithoutExpansionStaysToolCall(t *testing.T) {
+	// 対応する展開が無い Skill tool_use は従来どおり tool_call
+	s := parseLines(t, agentSkillUse)
+	if len(eventsOfKind(s, KindSkillInvocation)) != 0 {
+		t.Error("展開が無いのに skill_invocation になった")
+	}
+	if len(eventsOfKind(s, KindToolCall)) != 1 {
+		t.Error("tool_call が維持されていない")
+	}
+}
+
+func TestDeniedSkillUseStaysPermissionDeny(t *testing.T) {
+	deny := `{"type":"user","uuid":"u1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","is_error":true,"content":"The user doesn't want to proceed with this tool use. The tool use was rejected. To tell you how to proceed, the user said:\nやめて"}]}}`
+	s := parseLines(t, agentSkillUse, deny)
+	if len(eventsOfKind(s, KindPermissionDeny)) != 1 {
+		t.Fatal("拒否された Skill tool_use が permission_deny になっていない")
+	}
+	if len(eventsOfKind(s, KindSkillInvocation)) != 0 {
+		t.Error("拒否なのに skill_invocation が出ている")
+	}
+}
+
+func TestOrphanExpansionWithSourceToolUseIDIsHidden(t *testing.T) {
+	// sourceToolUseID を持つのに対応する Skill tool_use が無い展開は描画しない
+	s := parseLines(t,
+		`{"type":"user","uuid":"u0","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"通常発話"}}`,
+		agentSkillExpansion)
+	if len(eventsOfKind(s, KindSkillInvocation)) != 0 {
+		t.Error("孤立した展開エントリが描画されている")
+	}
+	for _, e := range eventsOfKind(s, KindUserMessage) {
+		if strings.Contains(e.Text, "現れてはならない") {
+			t.Error("孤立展開の本文が user_message に漏れている")
+		}
 	}
 }

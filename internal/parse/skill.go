@@ -1,6 +1,8 @@
 package parse
 
 import (
+	"encoding/json"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -72,4 +74,18 @@ func collectSkillIndex(records []rawRecord) skillIndex {
 		}
 	}
 	return idx
+}
+
+// agentSkillInvocation はエージェント発動 (Skill tool_use) の SkillInvocation を組み立てる。
+func agentSkillInvocation(b contentBlock, skillPath string) *SkillInvocation {
+	var input struct {
+		Skill string `json:"skill"`
+	}
+	_ = json.Unmarshal(b.Input, &input)
+	name := input.Skill
+	if name == "" {
+		// 縮退: input.skill が空ならパスの basename で代替する
+		name = path.Base(skillPath)
+	}
+	return &SkillInvocation{Name: name, Path: skillPath}
 }
