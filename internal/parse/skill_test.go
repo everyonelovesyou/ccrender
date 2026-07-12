@@ -109,8 +109,8 @@ func parseLines(t *testing.T, lines ...string) *Session {
 }
 
 const (
-	agentSkillUse        = `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Skill","input":{"skill":"superpowers:brainstorming"}}]}}`
-	agentSkillExpansion  = `{"type":"user","uuid":"sk1","parentUuid":"a1","sourceToolUseID":"tu1","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /Users/example/plug/skills/brainstorming\n\n# 手順\n\nこの本文は出力に現れてはならない"}]}}`
+	agentSkillUse       = `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Skill","input":{"skill":"superpowers:brainstorming"}}]}}`
+	agentSkillExpansion = `{"type":"user","uuid":"sk1","parentUuid":"a1","sourceToolUseID":"tu1","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"text","text":"Base directory for this skill: /Users/example/plug/skills/brainstorming\n\n# 手順\n\nこの本文は出力に現れてはならない"}]}}`
 )
 
 func TestAgentSkillInvocation(t *testing.T) {
@@ -170,6 +170,96 @@ func TestDeniedSkillUseStaysPermissionDeny(t *testing.T) {
 	}
 	if len(eventsOfKind(s, KindSkillInvocation)) != 0 {
 		t.Error("拒否なのに skill_invocation が出ている")
+	}
+}
+
+const (
+	userCommand   = `{"type":"user","uuid":"cmd1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"<command-message>ohayou</command-message>\n<command-name>/ohayou</command-name>"}}`
+	userExpansion = `{"type":"user","uuid":"sk2","parentUuid":"cmd1","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":"Base directory for this skill: /Users/example/.claude/skills/ohayou\n\n# 手順\n\nこの本文は出力に現れてはならない"}}`
+)
+
+func TestUserSkillInvocation(t *testing.T) {
+	s := parseLines(t, userCommand, userExpansion)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 {
+		t.Fatalf("skill_invocation %d件: %+v", len(invs), s.Events)
+	}
+	inv := invs[0].Skill
+	if !inv.ByUser || inv.Name != "ohayou" || inv.Command != "/ohayou" {
+		t.Errorf("SkillInvocation = %+v", inv)
+	}
+	if inv.Path != "/Users/example/.claude/skills/ohayou" {
+		t.Errorf("Path = %q", inv.Path)
+	}
+	// イベント時刻は展開エントリの timestamp (00:00:02)
+	if invs[0].Timestamp.Second() != 2 {
+		t.Errorf("Timestamp = %v, want 展開エントリの時刻", invs[0].Timestamp)
+	}
+	// user_message にも数えない (コマンドエントリはノイズ除去で空になる)
+	if s.Stats.UserMessages != 0 || s.Stats.SkillInvocations != 1 {
+		t.Errorf("Stats = %+v", s.Stats)
+	}
+}
+
+func TestUserSkillInvocationWithArgs(t *testing.T) {
+	cmd := `{"type":"user","uuid":"cmd1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"user","content":"<command-name>/ohayou</command-name>\n<command-args>今日も よろしく</command-args>"}}`
+	s := parseLines(t, cmd, userExpansion)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 || invs[0].Skill.Command != "/ohayou 今日も よろしく" {
+		t.Fatalf("引数付き Command 再現が違う: %+v", invs)
+	}
+}
+
+func TestUserSkillBasenameFallback(t *testing.T) {
+	// parentUuid の先にコマンドエントリが無い孤立展開は basename 縮退
+	orphan := `{"type":"user","uuid":"sk3","parentUuid":"nonexistent","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:05Z","message":{"role":"user","content":"Base directory for this skill: /Users/example/.claude/skills/oyasumi\n本文"}}`
+	s := parseLines(t, orphan)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 {
+		t.Fatalf("skill_invocation %d件", len(invs))
+	}
+	inv := invs[0].Skill
+	if !inv.ByUser || inv.Name != "oyasumi" || inv.Command != "/oyasumi" {
+		t.Errorf("basename 縮退 = %+v", inv)
+	}
+}
+
+func TestUserSkillNotBoundToUnrelatedCommand(t *testing.T) {
+	// コマンドの後に通常発話を挟んだ孤立展開 (parentUuid 不一致) は、
+	// 古いコマンドと結び付かず basename 縮退になる
+	talk := `{"type":"user","uuid":"u1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:03Z","message":{"role":"user","content":"別の話"}}`
+	orphan := `{"type":"user","uuid":"sk4","parentUuid":"u1","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:04Z","message":{"role":"user","content":"Base directory for this skill: /Users/example/.claude/skills/oyasumi\n本文"}}`
+	s := parseLines(t, userCommand, talk, orphan)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 {
+		t.Fatalf("skill_invocation %d件", len(invs))
+	}
+	if invs[0].Skill.Name != "oyasumi" {
+		t.Errorf("古いコマンド /ohayou と結び付いている: %+v", invs[0].Skill)
+	}
+}
+
+func TestTwoConsecutiveUserSkillInvocations(t *testing.T) {
+	// 連続する2件のユーザー呼び出しが、それぞれ正しいコマンドと結び付く
+	cmd2 := `{"type":"user","uuid":"cmd2","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:03Z","message":{"role":"user","content":"<command-name>/oyasumi</command-name>"}}`
+	exp2 := `{"type":"user","uuid":"sk5","parentUuid":"cmd2","isMeta":true,"isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:04Z","message":{"role":"user","content":"Base directory for this skill: /Users/example/.claude/skills/oyasumi\n本文"}}`
+	s := parseLines(t, userCommand, userExpansion, cmd2, exp2)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 2 {
+		t.Fatalf("skill_invocation %d件", len(invs))
+	}
+	if invs[0].Skill.Name != "ohayou" || invs[1].Skill.Name != "oyasumi" {
+		t.Errorf("対応付けが崩れている: %+v, %+v", invs[0].Skill, invs[1].Skill)
+	}
+}
+
+func TestCommandAndExpansionWithInterveningRecord(t *testing.T) {
+	// コマンドと展開の間に補助レコード (assistant 発話) が挟まっても parentUuid で結び付く
+	mid := `{"type":"assistant","uuid":"a9","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01.5Z","message":{"role":"assistant","content":[{"type":"text","text":"承知しました"}]}}`
+	s := parseLines(t, userCommand, mid, userExpansion)
+	invs := eventsOfKind(s, KindSkillInvocation)
+	if len(invs) != 1 || invs[0].Skill.Name != "ohayou" {
+		t.Fatalf("補助レコードを挟むと結び付かない: %+v", invs)
 	}
 }
 

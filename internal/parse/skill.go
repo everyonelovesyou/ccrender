@@ -5,6 +5,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // スキル展開エントリの本文はこの行で始まる (設計書)。
@@ -74,6 +75,24 @@ func collectSkillIndex(records []rawRecord) skillIndex {
 		}
 	}
 	return idx
+}
+
+// userSkillEvent はユーザー呼び出しの展開エントリを skill_invocation イベントへ変換する。
+// parentUuid でコマンドエントリを引き、見つからなければパスの basename で縮退する。
+func userSkillEvent(rec rawRecord, skillPath string, ts time.Time, idx skillIndex) Event {
+	inv := &SkillInvocation{Path: skillPath, ByUser: true}
+	if cmd, ok := idx.commands[rec.ParentUUID]; ok && rec.ParentUUID != "" {
+		inv.Name = strings.TrimPrefix(cmd.name, "/")
+		inv.Command = cmd.name
+		if cmd.args != "" {
+			inv.Command += " " + cmd.args
+		}
+	} else {
+		base := path.Base(skillPath)
+		inv.Name = base
+		inv.Command = "/" + base
+	}
+	return Event{Kind: KindSkillInvocation, Timestamp: ts, Skill: inv}
 }
 
 // agentSkillInvocation はエージェント発動 (Skill tool_use) の SkillInvocation を組み立てる。

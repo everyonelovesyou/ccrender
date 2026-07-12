@@ -110,11 +110,12 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 	var events []Event
 	switch rec.Type {
 	case "user":
-		if _, ok := skillExpansionPath(rec); ok {
-			// スキル展開エントリは user_message として出力しない。
-			// エージェント発動 (sourceToolUseID あり) は Skill tool_use 側で描画する
-			// (対応する tool_use が無ければそのまま非表示)。
-			return nil
+		if p, ok := skillExpansionPath(rec); ok {
+			if rec.SourceToolUseID != "" {
+				// エージェント発動: Skill tool_use 側で描画する (対応が無ければ非表示)
+				return nil
+			}
+			return []Event{userSkillEvent(rec, p, ts, idx)}
 		}
 		for _, b := range rec.Message.blocks() {
 			if b.Type != "text" {
