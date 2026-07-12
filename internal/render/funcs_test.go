@@ -23,3 +23,22 @@ func TestFirstLine(t *testing.T) {
 		t.Errorf("FirstLine = %q", got)
 	}
 }
+
+func TestFileURL(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"通常の絶対パス", "/Users/example/.claude/skills/ohayou", "file:///Users/example/.claude/skills/ohayou"},
+		{"空白と # を %エスケープする", "/Users/example/my skills/foo#bar", "file:///Users/example/my%20skills/foo%23bar"},
+		{"? を %エスケープする", "/Users/example/q?x", "file:///Users/example/q%3Fx"},
+		{"相対パスは空文字列 (テキスト表示へ縮退)", "skills/ohayou", ""},
+		{"空文字列も空", "", ""},
+	}
+	for _, c := range cases {
+		if got := string(FileURL(c.in)); got != c.want {
+			t.Errorf("%s: FileURL(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}

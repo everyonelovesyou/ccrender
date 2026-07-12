@@ -3,6 +3,8 @@ package render
 
 import (
 	"fmt"
+	htmltemplate "html/template"
+	"net/url"
 	"strings"
 	"text/template"
 )
@@ -25,10 +27,23 @@ func FirstLine(s string) string {
 	return s
 }
 
+// FileURL は絶対パスから file:// URL を生成する (空白・#・? 等を %エスケープ)。
+// template.URL を返すのは html/template の安全機構の意図的な迂回なので、
+// file スキーム + 絶対パス専用とし、汎用のキャスト関数にはしない。
+// 絶対パスでなければ空文字列を返し、テンプレート側でテキスト表示へ縮退させる。
+func FileURL(path string) htmltemplate.URL {
+	if !strings.HasPrefix(path, "/") {
+		return ""
+	}
+	u := url.URL{Scheme: "file", Path: path}
+	return htmltemplate.URL(u.String())
+}
+
 // Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
 func Funcs() template.FuncMap {
 	return template.FuncMap{
 		"truncateLines": TruncateLines,
 		"firstLine":     FirstLine,
+		"fileURL":       FileURL,
 	}
 }
