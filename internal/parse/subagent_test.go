@@ -49,6 +49,37 @@ func TestSubagentMissingFallsBackWithWarning(t *testing.T) {
 	}
 }
 
+func TestSubagentDeniedIsPermissionDeny(t *testing.T) {
+	// Agent tool_use が拒否された場合は SubagentCall ではなく PermissionDeny として扱う
+	dir := t.TempDir()
+	path := dir + "/denied-agent.jsonl"
+	lines := `{"type":"assistant","uuid":"a1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tux","name":"Agent","input":{"description":"調査","prompt":"do it","subagent_type":"general-purpose"}}]}}
+{"type":"user","uuid":"u1","isSidechain":false,"cwd":"/p","sessionId":"s1","timestamp":"2026-07-12T00:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tux","is_error":true,"content":"The user doesn't want to proceed with this tool use. The tool use was rejected. To tell you how to proceed, the user said:\nこのエージェントは呼ばないで\n\nNote: The user's next message may contain a correction."}]}}
+`
+	if err := writeFile(path, lines); err != nil {
+		t.Fatal(err)
+	}
+	var warn bytes.Buffer
+	s, err := ParseFile(path, &warn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := eventsOfKind(s, KindSubagentCall); len(got) != 0 {
+		t.Fatalf("SubagentCall として扱われてはいけない: %+v", got)
+	}
+	got := eventsOfKind(s, KindPermissionDeny)
+	if len(got) != 1 {
+		t.Fatalf("PermissionDeny %d件", len(got))
+	}
+	tc := got[0].Tool
+	if tc == nil || tc.Name != "Agent" || tc.DenyReason != "このエージェントは呼ばないで" {
+		t.Errorf("PermissionDeny: %+v", tc)
+	}
+	if strings.Contains(warn.String(), "サブエージェント記録が見つかりません") {
+		t.Errorf("拒否された Agent に対して誤ったサブエージェント警告が出た: %q", warn.String())
+	}
+}
+
 func TestLoadSubagents(t *testing.T) {
 	subs := loadSubagents("testdata/session_small/subagents")
 	sub, ok := subs["tu3"]

@@ -139,9 +139,6 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 
 // toolEvent は tool_use ブロックを ToolCall (または Agent の場合 SubagentCall) イベントへ変換する。
 func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) Event {
-	if b.Name == "Agent" {
-		return subagentEvent(b, ts, results, subs, warn)
-	}
 	tc := &ToolCall{
 		Name:    b.Name,
 		Summary: toolSummary(b.Name, b.Input),
@@ -160,6 +157,14 @@ func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, su
 				}
 			}
 		}
+	}
+	if kind == KindPermissionDeny {
+		// 拒否された Agent tool_use は SubagentCall ではなく PermissionDeny として扱う
+		// (サブエージェントは実際には起動されていないため)
+		return Event{Kind: kind, Timestamp: ts, Tool: tc}
+	}
+	if b.Name == "Agent" {
+		return subagentEvent(b, ts, results, subs, warn)
 	}
 	return Event{Kind: kind, Timestamp: ts, Tool: tc}
 }
