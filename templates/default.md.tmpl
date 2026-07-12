@@ -1,0 +1,50 @@
+# セッション {{.ID}}
+
+- プロジェクト: {{.ProjectPath}}
+- 期間: {{.StartedAt.Format "2006-01-02 15:04"}} 〜 {{.EndedAt.Format "2006-01-02 15:04"}}
+- イベント: user {{.Stats.UserMessages}} / assistant {{.Stats.AssistantMessages}} / ツール {{.Stats.ToolCalls}} / 権限拒否 {{.Stats.PermissionDenies}} / サブエージェント {{.Stats.SubagentCalls}}
+{{- if .Stats.SkippedLines}}
+- 注意: {{.Stats.SkippedLines}}行をスキップ
+{{- end}}
+{{range .Events}}
+{{- if eq .Kind "user_message"}}
+## 👤 User ({{.Timestamp.Format "15:04"}})
+
+{{.Text}}
+{{else if eq .Kind "assistant_message"}}
+## 🤖 Assistant ({{.Timestamp.Format "15:04"}})
+
+{{.Text}}
+{{else if eq .Kind "tool_call"}}
+🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
+{{- if .Tool.HasResult}}
+
+```
+{{truncateLines 20 .Tool.Result}}
+```
+{{else}}
+
+(結果なし)
+{{end}}
+{{- else if eq .Kind "permission_deny"}}
+🚫 **拒否** {{.Tool.Name}} — `{{firstLine .Tool.Summary}}`
+{{- if .Tool.DenyReason}}
+
+> {{.Tool.DenyReason}}
+{{end}}
+{{- else if eq .Kind "subagent_call"}}
+### 🤝 サブエージェント ({{.Subagent.AgentType}})
+
+**依頼:**
+
+{{.Subagent.Prompt}}
+
+**最終回答:**
+
+{{.Subagent.Answer}}
+{{else if eq .Kind "system_note"}}
+---
+📍 {{.Text}}
+---
+{{end}}
+{{- end}}
