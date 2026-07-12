@@ -29,6 +29,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 		return nil, fmt.Errorf("有効な行がありません (%s、スキップ %d行)", path, skipped)
 	}
 
+	results := collectToolResults(records)
 	s := &Session{}
 	for _, rec := range records {
 		if s.ID == "" {
@@ -44,7 +45,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 			}
 			s.EndedAt = ts
 		}
-		s.Events = append(s.Events, buildEvents(rec, ts)...)
+		s.Events = append(s.Events, buildEvents(rec, ts, results)...)
 	}
 	s.Stats = computeStats(s.Events, skipped)
 	return s, nil
@@ -83,14 +84,30 @@ func parseTime(s string) time.Time {
 	return t
 }
 
-// buildEvents は1レコードをイベント列へ変換する (このタスクでは発話のみ)。
-func buildEvents(rec rawRecord, ts time.Time) []Event {
+// collectToolResults は user レコード中の tool_result を tool_use_id で索引化する。
+func collectToolResults(records []rawRecord) map[string]contentBlock {
+	m := map[string]contentBlock{}
+	for _, rec := range records {
+		if rec.Type != "user" {
+			continue
+		}
+		for _, b := range rec.Message.blocks() {
+			if b.Type == "tool_result" && b.ToolUseID != "" {
+				m[b.ToolUseID] = b
+			}
+		}
+	}
+	return m
+}
+
+// buildEvents は1レコードをイベント列へ変換する。
+func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock) []Event {
 	var events []Event
 	switch rec.Type {
 	case "user":
 		for _, b := range rec.Message.blocks() {
 			if b.Type != "text" {
-				continue
+				continue // tool_result は tool_use 側で統合済み
 			}
 			if text := stripNoise(b.Text); text != "" {
 				events = append(events, Event{Kind: KindUserMessage, Timestamp: ts, Text: text})
@@ -98,15 +115,32 @@ func buildEvents(rec rawRecord, ts time.Time) []Event {
 		}
 	case "assistant":
 		for _, b := range rec.Message.blocks() {
-			if b.Type != "text" {
-				continue
-			}
-			if text := stripNoise(b.Text); text != "" {
-				events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
+			switch b.Type {
+			case "text":
+				if text := stripNoise(b.Text); text != "" {
+					events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
+				}
+			case "tool_use":
+				events = append(events, toolEvent(b, ts, results))
 			}
 		}
 	}
 	return events
+}
+
+// toolEvent は tool_use ブロックを ToolCall イベントへ変換する。
+func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock) Event {
+	tc := &ToolCall{
+		Name:    b.Name,
+		Summary: toolSummary(b.Name, b.Input),
+		Input:   formatInput(b.Input),
+	}
+	if res, ok := results[b.ID]; ok {
+		tc.HasResult = true
+		tc.Result = res.resultText()
+		tc.IsError = res.IsError
+	}
+	return Event{Kind: KindToolCall, Timestamp: ts, Tool: tc}
 }
 
 func computeStats(events []Event, skipped int) Stats {
