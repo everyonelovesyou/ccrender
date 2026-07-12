@@ -22,6 +22,8 @@
   .sub { border: 1px solid #dadce0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; }
   .sub .label { font-weight: bold; color: #5f6368; margin-top: 0.5rem; }
   .sub .body { white-space: pre-wrap; }
+  .skill { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; color: #5f6368; }
+  .msg .skill { margin: 0.5rem 0 0; }
   .ts { color: #80868b; font-size: 0.8rem; }
 </style>
 <header>
@@ -29,7 +31,7 @@
   <dl>
     <dt>プロジェクト</dt><dd>/Users/example/proj</dd>
     <dt>期間</dt><dd>2026-07-12 00:00 〜 2026-07-12 00:00</dd>
-    <dt>イベント</dt><dd>user 1 / assistant 1 / ツール 2 / 🚫 1 / 🤝 1</dd>
+    <dt>イベント</dt><dd>user 1 / assistant 1 / ツール 2 / 🚫 1 / 🤝 1 / スキル 2</dd>
   </dl>
 </header>
 <main>
@@ -81,4 +83,9 @@
 <pre>{}</pre>
 <p>(結果なし)</p>
 </details>
+<div class="msg user"><span class="ts">👤 00:00</span>
+/ohayou 今日も
+<div class="skill">🔧 Skill(<b>ohayou</b>) <a href="file:///Users/example/.claude/skills/ohayou">/Users/example/.claude/skills/ohayou</a></div>
+</div>
+<div class="skill">🔧 Skill(<b>superpowers:brainstorming</b>) <a href="file:///Users/example/plug/skills/brainstorming">/Users/example/plug/skills/brainstorming</a></div>
 </main>

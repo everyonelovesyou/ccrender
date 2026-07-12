@@ -22,6 +22,8 @@
   .sub { border: 1px solid #dadce0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; }
   .sub .label { font-weight: bold; color: #5f6368; margin-top: 0.5rem; }
   .sub .body { white-space: pre-wrap; }
+  .skill { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; color: #5f6368; }
+  .msg .skill { margin: 0.5rem 0 0; }
   .ts { color: #80868b; font-size: 0.8rem; }
 </style>
 <header>
@@ -29,7 +31,7 @@
   <dl>
     <dt>プロジェクト</dt><dd>{{.ProjectPath}}</dd>
     <dt>期間</dt><dd>{{.StartedAt.Format "2006-01-02 15:04"}} 〜 {{.EndedAt.Format "2006-01-02 15:04"}}</dd>
-    <dt>イベント</dt><dd>user {{.Stats.UserMessages}} / assistant {{.Stats.AssistantMessages}} / ツール {{.Stats.ToolCalls}} / 🚫 {{.Stats.PermissionDenies}} / 🤝 {{.Stats.SubagentCalls}}</dd>
+    <dt>イベント</dt><dd>user {{.Stats.UserMessages}} / assistant {{.Stats.AssistantMessages}} / ツール {{.Stats.ToolCalls}} / 🚫 {{.Stats.PermissionDenies}} / 🤝 {{.Stats.SubagentCalls}} / スキル {{.Stats.SkillInvocations}}</dd>
   </dl>
 </header>
 <main>
@@ -62,6 +64,16 @@
 <div class="label">最終回答</div>
 <div class="body">{{.Subagent.Answer}}</div>
 </div>
+{{- else if eq .Kind "skill_invocation"}}
+{{- $p := .Skill.Path}}
+{{- if .Skill.ByUser}}
+<div class="msg user"><span class="ts">👤 {{.Timestamp.Format "15:04"}}</span>
+{{.Skill.Command}}
+<div class="skill">🔧 Skill(<b>{{.Skill.Name}}</b>) {{with fileURL $p}}<a href="{{.}}">{{$p}}</a>{{else}}<code>{{$p}}</code>{{end}}</div>
+</div>
+{{- else}}
+<div class="skill">🔧 Skill(<b>{{.Skill.Name}}</b>) {{with fileURL $p}}<a href="{{.}}">{{$p}}</a>{{else}}<code>{{$p}}</code>{{end}}</div>
+{{- end}}
 {{- else if eq .Kind "system_note"}}
 <div class="note">📍 {{.Text}}</div>
 {{- end}}
