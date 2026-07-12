@@ -76,17 +76,19 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 | `PermissionDenies` | `int` | 権限拒否の件数 |
 | `SystemNotes` | `int` | システムノートの件数 |
 | `SubagentCalls` | `int` | サブエージェント呼び出しの件数 |
+| `SkillInvocations` | `int` | スキル発動の件数 |
 | `SkippedLines` | `int` | パースできずスキップした行数 |
 
 ### Event
 
 | フィールド | 型 | 説明 |
 | --- | --- | --- |
-| `Kind` | `string` | イベント種別。`user_message` / `assistant_message` / `tool_call` / `permission_deny` / `system_note` / `subagent_call` の6種 |
+| `Kind` | `string` | イベント種別。`user_message` / `assistant_message` / `tool_call` / `permission_deny` / `system_note` / `subagent_call` / `skill_invocation` の7種 |
 | `Timestamp` | `time.Time` | イベント発生時刻 |
 | `Text` | `string` | `user_message` / `assistant_message` / `system_note` のときの本文 |
 | `Tool` | `*ToolCall` | `Kind` が `tool_call` / `permission_deny` のとき非 nil |
 | `Subagent` | `*Subagent` | `Kind` が `subagent_call` のとき非 nil |
+| `Skill` | `*SkillInvocation` | `Kind` が `skill_invocation` のとき非 nil |
 
 ### ToolCall
 
@@ -109,12 +111,30 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 | `Prompt` | `string` | 依頼プロンプト全文 (要約しない) |
 | `Answer` | `string` | 最終回答全文 (要約しない) |
 
+### SkillInvocation
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `Name` | `string` | スキル名。エージェント発動は Skill ツールの `input.skill`、ユーザー呼び出しはコマンド名の先頭 `/` を除いた形 |
+| `Path` | `string` | スキル本体のディレクトリ絶対パス |
+| `ByUser` | `bool` | true ならユーザーのスラッシュコマンド呼び出し、false ならエージェントによる Skill ツール発動 |
+| `Command` | `string` | `ByUser` のとき「/name 引数」の再現文字列。エージェント発動では空 |
+
+デフォルトテンプレートでの表示例 (md):
+
+```
+🔧 Skill(superpowers:brainstorming) `/Users/.../skills/brainstorming`
+```
+
+ユーザー呼び出しは 👤 User の発言としてコマンド再現 (`/ohayou 今日も` など) と上記チップを表示します。スキル展開の本文 (手順書) はどの形式でも出力しません。
+
 ### テンプレート関数
 
 | 関数 | シグネチャ | 説明 |
 | --- | --- | --- |
 | `truncateLines` | `truncateLines n s` | 文字列 `s` を先頭 `n` 行に切り詰め、`… (残りX行省略)` を付記する。パイプ記法では `{{.Tool.Result \| truncateLines 20}}` のように使う |
 | `firstLine` | `firstLine s` | 文字列 `s` の先頭1行を返す (HTML の `<details>` サマリー用) |
+| `fileURL` | `fileURL path` | 絶対パスから `file://` URL を生成する (HTML 用。空白や `#` を %エスケープ)。絶対パスでない場合は空文字列を返す |
 
 ### `--template-md` / `--template-html` による差し替え例
 
