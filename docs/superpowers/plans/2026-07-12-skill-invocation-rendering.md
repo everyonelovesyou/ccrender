@@ -850,7 +850,7 @@ Expected: golden と不一致で FAIL (skill イベントが未対応なので�
 イベント分岐の `subagent_call` ブロックの後 (`{{else if eq .Kind "system_note"}}` の前) に追加:
 
 ```
-{{- else if eq .Kind "skill_invocation"}}
+{{else if eq .Kind "skill_invocation"}}
 {{- if .Skill.ByUser}}
 ## 👤 User ({{.Timestamp.Format "15:04"}})
 
