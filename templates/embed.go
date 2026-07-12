@@ -3,5 +3,5 @@ package templates
 
 import "embed"
 
-//go:embed default.md.tmpl
+//go:embed default.md.tmpl default.html.tmpl
 var FS embed.FS
