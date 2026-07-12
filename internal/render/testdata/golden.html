@@ -1,49 +1,215 @@
+<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>cctx — sess-0001</title>
 <style>
-  :root { --user: #e8f0fe; --assistant: #f1f3f4; --deny: #fdecea; --note: #fef7e0; }
-  body { font-family: -apple-system, "Hiragino Sans", sans-serif; max-width: 60rem;
-         margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #202124; }
-  header { border-bottom: 2px solid #dadce0; margin-bottom: 1.5rem; padding-bottom: 1rem; }
-  header dl { display: grid; grid-template-columns: 8rem 1fr; gap: 0.2rem 1rem; margin: 0; }
-  header dt { color: #5f6368; }
-  .msg { border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; white-space: pre-wrap; }
-  .user { background: var(--user); }
-  .assistant { background: var(--assistant); }
-  .tool { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; }
-  .tool summary, .sub summary { cursor: pointer; }
-  .tool pre, .sub pre { background: #202124; color: #e8eaed; padding: 0.75rem;
-                        border-radius: 0.5rem; overflow-x: auto; white-space: pre-wrap; }
-  .deny { background: var(--deny); border-left: 4px solid #d93025; padding: 0.5rem 1rem;
-          margin: 0.75rem 0 0.75rem 1rem; }
-  .note { background: var(--note); text-align: center; border-radius: 0.5rem;
-          padding: 0.3rem; margin: 1rem 0; color: #5f6368; }
-  .sub { border: 1px solid #dadce0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin: 0.75rem 0; }
-  .sub .label { font-weight: bold; color: #5f6368; margin-top: 0.5rem; }
-  .sub .body { white-space: pre-wrap; }
-  .skill { font-size: 0.9rem; margin: 0.5rem 0 0.5rem 1rem; color: #5f6368; }
-  .msg .skill { margin: 0.5rem 0 0; }
-  .ts { color: #80868b; font-size: 0.8rem; }
+  :root {
+    --bg: #fcfaf7; --panel: #f7f4ee; --card: #ffffff; --border: #ebe4d9; --border-soft: #f1ece3;
+    --text: #2b2620; --text-soft: #6b6154; --muted: #a2988a; --faint: #c1b8ab;
+    --accent: #b5502e; --accent-deep: #954023; --accent-bg: #faece2; --accent-border: #f0d9c8;
+    --deny: #b3352a; --deny-bg: #fdefed; --deny-border: #f5cdc8; --deny-text: #7e453f;
+    --note: #a08420; --note-line: #ecdfae;
+    --sub: #b23d6f; --sub-bg: #fdf6f9; --sub-border: #f0d4e0;
+    --skill: #857425; --skill-bg: #f3efd7; --skill-border: #ddd3a4;
+    --term-bg: #211c16; --term-text: #e0d9cd; --term-dim: #97897a; --term-err: #e06a5f;
+    --diff-add-bg: #edf2da; --diff-add: #58691e; --diff-del-bg: #f9e9e4; --diff-del: #9c3a26;
+    --tool-bash: #a04b8c; --tool-bash-bg: #f8ecf5;
+    --tool-edit: #a07408; --tool-edit-bg: #f8f0d9;
+    --tool-read: #6e8422; --tool-read-bg: #eef2dc;
+    --tool-etc: #6b6154; --tool-etc-bg: #f1ece3;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1815; --panel: #221d19; --card: #221d19; --border: #362f28; --border-soft: #2e2822;
+      --text: #e0d9cd; --text-soft: #b3a897; --muted: #8c8071; --faint: #6a6053;
+      --accent: #d98a5f; --accent-deep: #e5a37f; --accent-bg: #33241b; --accent-border: #4a3527;
+      --deny: #e06a5f; --deny-bg: #2b1c1a; --deny-border: #4a2823; --deny-text: #d9a49d;
+      --note: #cfae4a; --note-line: #453d1f;
+      --sub: #d97fa9; --sub-bg: #2c1e25; --sub-border: #47303b;
+      --skill: #c4b054; --skill-bg: #2a2514; --skill-border: #4a4222;
+      --term-bg: #14110d; --diff-add-bg: #232b14; --diff-add: #a4c46a; --diff-del-bg: #321d16; --diff-del: #e29c85;
+      --tool-bash: #d48cc0; --tool-bash-bg: #33202e;
+      --tool-edit: #d9ae4e; --tool-edit-bg: #3a2e10;
+      --tool-read: #a3bd58; --tool-read-bg: #262e12;
+      --tool-etc: #b3a897; --tool-etc-bg: #2a251f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 15px;
+         font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-deep); text-decoration: underline; }
+  code, pre { font-family: var(--mono); }
+
+   
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px;
+           padding: 10px 24px; background: color-mix(in srgb, var(--bg) 92%, transparent);
+           backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); }
+  header .brand { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  header h1 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  header .stats { margin-left: auto; display: flex; gap: 6px; font-size: 12px; white-space: nowrap; }
+  header .stats span { background: var(--tool-etc-bg); color: var(--text-soft); padding: 2px 10px; border-radius: 99px; }
+  header .stats .u { background: var(--accent-bg); color: var(--accent-deep); }
+  header .stats .d { background: var(--deny-bg); color: var(--deny); }
+  header .stats .s { background: var(--sub-bg); color: var(--sub); }
+  header .stats .k { background: var(--skill-bg); color: var(--skill); }
+
+   
+  .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { display: none; } }
+  nav.toc { border-right: 1px solid var(--border-soft); background: var(--panel);
+            position: sticky; top: 49px; height: calc(100vh - 49px); overflow-y: auto; padding: 16px 0; }
+  nav.toc .cap { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); padding: 0 18px 8px; }
+  nav.toc a { display: block; padding: 5px 18px; font-size: 13px; color: var(--text-soft);
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav.toc a:hover { background: var(--accent-bg); color: var(--accent-deep); text-decoration: none; }
+  nav.toc .filters { display: flex; flex-direction: column; gap: 4px; padding: 4px 18px 0; font-size: 13px; color: var(--text-soft); }
+  nav.toc .filters label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+  main { padding: 24px 28px 64px; display: flex; flex-direction: column; gap: 14px; }
+  body.hide-tools .ev-tool { display: none; }
+  body.hide-talk .ev-talk { display: none; }
+  body.hide-sub .ev-sub { display: none; }
+
+   
+  .msg { display: flex; gap: 12px; }
+  .msg .avatar { width: 30px; height: 30px; border-radius: 99px; display: flex; align-items: center;
+                 justify-content: center; font-size: 15px; flex-shrink: 0;
+                 background: var(--tool-etc-bg); border: 1px solid var(--border); }
+  .msg.user .avatar { background: var(--accent); border: none; }
+  .msg .body { flex: 1; min-width: 0; }
+  .msg .meta { display: flex; gap: 8px; align-items: baseline; }
+  .msg .who { font-weight: 700; font-size: 13px; color: var(--text-soft); }
+  .msg.user .who { color: var(--accent-deep); }
+  .msg .ts { font-size: 12px; color: var(--muted); }
+  .msg .text { white-space: pre-wrap; overflow-wrap: break-word; }
+  .msg.user .text { background: var(--accent-bg); border: 1px solid var(--accent-border);
+                    border-radius: 4px 12px 12px 12px; padding: 10px 14px; }
+
+   
+  button.copy { margin-left: auto; border: none; background: none; color: var(--muted);
+                font-size: 12px; cursor: pointer; opacity: .55; font-family: inherit; }
+  button.copy:hover { opacity: 1; color: var(--accent); }
+
+   
+  .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
+  details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
+  details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+                           font-size: 13px; cursor: pointer; list-style: none; }
+  details.tool > summary::-webkit-details-marker { display: none; }
+  details.tool[open] > summary { border-bottom: 1px solid var(--border-soft); }
+  details.tool > summary .chev::before { content: "▸"; color: var(--muted); font-size: 11px; }
+  details.tool[open] > summary .chev::before { content: "▾"; }
+  .tool-badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 5px;
+                background: var(--tool-etc-bg); color: var(--tool-etc); white-space: nowrap; }
+  [data-tool="Bash"] .tool-badge { background: var(--tool-bash-bg); color: var(--tool-bash); }
+  [data-tool="Edit"] .tool-badge, [data-tool="Write"] .tool-badge, [data-tool="MultiEdit"] .tool-badge
+    { background: var(--tool-edit-bg); color: var(--tool-edit); }
+  [data-tool="Read"] .tool-badge, [data-tool="Glob"] .tool-badge, [data-tool="Grep"] .tool-badge
+    { background: var(--tool-read-bg); color: var(--tool-read); }
+  details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
+                                overflow: hidden; text-overflow: ellipsis; }
+  details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+                     white-space: pre-wrap; overflow-wrap: break-word; }
+  details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
+  details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
+  details.tool pre.result .err { color: var(--term-err); }
+  details.tool pre.result .add { display: block; background: var(--diff-add-bg); color: var(--diff-add); }
+  details.tool pre.result .del { display: block; background: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
+
+   
+  .skill { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--skill-border);
+           background: var(--skill-bg); color: var(--skill); border-radius: 99px; padding: 2px 12px;
+           font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+  .skill-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .skill-line .path { font-family: var(--mono); font-size: 12px; color: var(--skill); overflow-wrap: anywhere; }
+  .skill-row { margin-left: 42px; }
+  .msg .cmd { font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--accent-deep); }
+  .msg .text .skill-line { margin-top: 8px; }
+
+   
+  .deny { margin-left: 42px; border: 1px solid var(--deny-border); background: var(--deny-bg);
+          border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+  .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .deny .mark { background: var(--deny); color: #fff; font-size: 11px; font-weight: 700;
+                padding: 1px 8px; border-radius: 5px; }
+  .deny code { font-size: 12.5px; color: var(--deny-text); }
+  .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
+                     color: var(--deny-text); white-space: pre-wrap; }
+
+   
+  .note { display: flex; align-items: center; gap: 10px; color: var(--note); font-size: 12.5px; }
+  .note::before, .note::after { content: ""; flex: 1; height: 1px; background: var(--note-line); }
+
+   
+  .sub { margin-left: 42px; border: 1px solid var(--sub-border); background: var(--sub-bg);
+         border-radius: 10px; overflow: hidden; }
+  .sub .head { display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+               border-bottom: 1px solid var(--sub-border); font-size: 13px; }
+  .sub .mark { background: var(--sub); color: #fff; font-size: 11px; font-weight: 700;
+               padding: 1px 8px; border-radius: 5px; }
+  .sub .type { color: var(--sub); font-family: var(--mono); font-size: 12px; }
+  .sub .inner { padding: 10px 14px; font-size: 13.5px; }
+  .sub .cap { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--sub); opacity: .8; }
+  .sub .cap + * { margin-bottom: 8px; }
+  .sub details summary { cursor: pointer; color: var(--text-soft); }
+  .sub .body { white-space: pre-wrap; overflow-wrap: break-word; }
 </style>
 <header>
-  <h1>セッション sess-0001</h1>
-  <dl>
-    <dt>プロジェクト</dt><dd>/Users/example/proj</dd>
-    <dt>期間</dt><dd>2026-07-12 00:00 〜 2026-07-12 00:00</dd>
-    <dt>イベント</dt><dd>user 1 / assistant 1 / ツール 2 / 🚫 1 / 🤝 1 / スキル 2</dd>
-  </dl>
+  <span class="brand">cctx</span>
+  <h1>sess-0001 <small>· /Users/example/proj · 2026-07-12 00:00 〜 00:00</small></h1>
+  <div class="stats">
+    <span class="u">👤 1</span>
+    <span>🤖 1</span>
+    <span>🔧 2</span>
+    <span class="k">スキル 2</span>
+    <span class="d">🚫 1</span>
+    <span class="s">🤝 1</span>
+  </div>
 </header>
+<div class="layout">
+<nav class="toc">
+  <div class="cap">タイムライン</div>
+  <a href="#e0">00:00 こんにちは</a>
+  <div class="cap" style="padding-top:18px">フィルタ</div>
+  <div class="filters">
+    <label><input type="checkbox" checked data-toggle="hide-talk"> 発話</label>
+    <label><input type="checkbox" checked data-toggle="hide-tools"> 🔧 ツール</label>
+    <label><input type="checkbox" checked data-toggle="hide-sub"> 🤝 サブエージェント</label>
+  </div>
+</nav>
 <main>
-<div class="msg user"><span class="ts">👤 00:00</span>
-こんにちは</div>
-<div class="msg assistant"><span class="ts">🤖 00:00</span>
-確認します</div>
-<details class="tool"><summary>🔧 <b>Bash</b> <code>seq 1 25</code></summary>
-<pre>{
+<div class="msg user ev-talk" id="e0">
+  <div class="avatar">👤</div>
+  <div class="body">
+    <div class="meta"><span class="who">あなた</span><span class="ts">00:00</span>
+      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+    <div class="text copy-src">こんにちは</div>
+  </div>
+</div>
+<div class="msg ev-talk" id="e1">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span>
+      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+    <div class="text copy-src">確認します</div>
+  </div>
+</div>
+<div class="tools ev-tool" id="e2" data-tool="Bash">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Bash</span>
+      <code class="copy-src">seq 1 25</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{
   &#34;command&#34;: &#34;seq 1 25&#34;
 }</pre>
-<pre>1
+    <pre class="result">1
 2
 3
 4
@@ -68,24 +234,89 @@
 23
 24
 25</pre>
-</details>
-<div class="deny">🚫 <b>拒否</b> Edit <code>/tmp/x.txt</code>
-<blockquote>こっちは触らないで</blockquote>
+  </details>
 </div>
-<div class="sub">🤝 <b>サブエージェント</b> (general-purpose)
-<div class="label">依頼</div>
-<details><summary>Please investigate.</summary><div class="body">Please investigate.</div></details>
-<div class="label">最終回答</div>
-<div class="body">Investigation summary.</div>
+<div class="deny ev-tool" id="e3" data-tool="Edit">
+  <div class="row">
+    <span class="mark">🚫 拒否</span>
+    <span class="tool-badge">Edit</span>
+    <code>/tmp/x.txt</code>
+  </div>
+  <blockquote>こっちは触らないで</blockquote>
 </div>
-<div class="note">📍 コンテキスト圧縮 (compact)</div>
-<details class="tool"><summary>🔧 <b>Read</b> <code>/tmp/y.txt</code></summary>
-<pre>{}</pre>
-<p>(結果なし)</p>
-</details>
-<div class="msg user"><span class="ts">👤 00:00</span>
-/ohayou 今日も
-<div class="skill">🔧 Skill(<b>ohayou</b>) <a href="file:///Users/example/.claude/skills/ohayou">/Users/example/.claude/skills/ohayou</a></div>
+<div class="sub ev-sub" id="e4">
+  <div class="head"><span class="mark">🤝 サブエージェント</span><span class="type">general-purpose</span></div>
+  <div class="inner">
+    <div class="cap">依頼</div>
+    <details><summary>Please investigate.</summary><div class="body">Please investigate.</div></details>
+    <div class="cap">最終回答</div>
+    <div class="body">Investigation summary.</div>
+  </div>
 </div>
-<div class="skill">🔧 Skill(<b>superpowers:brainstorming</b>) <a href="file:///Users/example/plug/skills/brainstorming">/Users/example/plug/skills/brainstorming</a></div>
+<div class="note" id="e5">📍 コンテキスト圧縮 (compact)</div>
+<div class="tools ev-tool" id="e6" data-tool="Read">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Read</span>
+      <code class="copy-src">/tmp/y.txt</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{}</pre>
+    <p class="noresult">(結果なし)</p>
+  </details>
+</div>
+<div class="msg user ev-talk" id="e7">
+  <div class="avatar">👤</div>
+  <div class="body">
+    <div class="meta"><span class="who">あなた</span><span class="ts">00:00</span></div>
+    <div class="text">
+      <code class="cmd">/ohayou 今日も</code>
+      <div class="skill-line">
+        <span class="skill">🔧 Skill(<b>ohayou</b>)</span>
+        <span class="path copy-src">/Users/example/.claude/skills/ohayou</span>
+        <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="skill-row skill-line ev-tool" id="e8">
+  <span class="skill">🔧 Skill(<b>superpowers:brainstorming</b>)</span>
+  <span class="path copy-src">/Users/example/plug/skills/brainstorming</span>
+  <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+</div>
 </main>
+</div>
+<script>
+  
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button.copy");
+    if (!btn) return;
+    var scope = btn.closest(".skill-line, .body, summary, .msg");
+    var src = scope && scope.querySelector(".copy-src");
+    if (src && navigator.clipboard) {
+      navigator.clipboard.writeText(src.textContent.trim());
+      var old = btn.textContent;
+      btn.textContent = "✓";
+      setTimeout(function () { btn.textContent = old; }, 900);
+    }
+    ev.preventDefault();
+  });
+  
+  document.querySelectorAll(".filters input").forEach(function (cb) {
+    cb.addEventListener("change", function () {
+      document.body.classList.toggle(cb.dataset.toggle, !cb.checked);
+    });
+  });
+  
+  document.querySelectorAll("pre.result").forEach(function (pre) {
+    var html = pre.innerHTML.split("\n").map(function (line) {
+      var plain = line.replace(/<[^>]*>/g, "");
+      if (/^\+(?!\+\+)/.test(plain)) return '<span class="add">' + line + "</span>";
+      if (/^-(?!--)/.test(plain)) return '<span class="del">' + line + "</span>";
+      if (/^(---? )?(FAIL|ERROR|panic:)/.test(plain)) return '<span class="err">' + line + "</span>";
+      return line;
+    }).join("\n");
+    pre.innerHTML = html;
+  });
+</script>

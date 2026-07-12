@@ -57,15 +57,15 @@ func TestHTMLSkillChip(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	// file:// リンクが期待どおり生成される (#ZgotmplZ でない)
-	if strings.Contains(out, "ZgotmplZ") {
-		t.Error("href が #ZgotmplZ に置換されている")
+	// パスはリンクではなくコピー用テキストとして表示する
+	if strings.Contains(out, `href="file://`) {
+		t.Error("スキルパスが file:// リンクになっている (テキスト表示が期待値)")
 	}
-	if !strings.Contains(out, `href="file:///Users/example/.claude/skills/ohayou"`) {
-		t.Error("ユーザー呼び出しの file:// リンクがない")
+	if !strings.Contains(out, `class="path copy-src">/Users/example/.claude/skills/ohayou<`) {
+		t.Error("ユーザー呼び出しのパス表示がない")
 	}
-	if !strings.Contains(out, `href="file:///Users/example/plug/skills/brainstorming"`) {
-		t.Error("エージェント発動の file:// リンクがない")
+	if !strings.Contains(out, `class="path copy-src">/Users/example/plug/skills/brainstorming<`) {
+		t.Error("エージェント発動のパス表示がない")
 	}
 	// ユーザー呼び出しはコマンド再現がユーザーバブルに入る
 	if !strings.Contains(out, "/ohayou 今日も") {
@@ -76,7 +76,8 @@ func TestHTMLSkillChip(t *testing.T) {
 	}
 }
 
-func TestHTMLSkillPathEscaping(t *testing.T) {
+func TestHTMLSkillPathShownVerbatim(t *testing.T) {
+	// パスは URL エスケープせず、そのままテキストで表示する
 	s := &parse.Session{ID: "x", Events: []parse.Event{
 		{Kind: parse.KindSkillInvocation, Skill: &parse.SkillInvocation{
 			Name: "odd", Path: "/Users/example/my skills/foo#bar",
@@ -86,26 +87,11 @@ func TestHTMLSkillPathEscaping(t *testing.T) {
 	if err := HTML(&buf, s, ""); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), `href="file:///Users/example/my%20skills/foo%23bar"`) {
-		t.Errorf("空白・# が %%エスケープされていない:\n%s", buf.String())
-	}
-}
-
-func TestHTMLSkillRelativePathDegradesToText(t *testing.T) {
-	s := &parse.Session{ID: "x", Events: []parse.Event{
-		{Kind: parse.KindSkillInvocation, Skill: &parse.SkillInvocation{
-			Name: "rel", Path: "skills/rel",
-		}},
-	}}
-	var buf bytes.Buffer
-	if err := HTML(&buf, s, ""); err != nil {
-		t.Fatal(err)
-	}
 	out := buf.String()
-	if strings.Contains(out, `href="skills/rel"`) || strings.Contains(out, `href=""`) {
-		t.Error("相対パスがリンクになっている (または空 href が出ている)")
+	if !strings.Contains(out, `class="path copy-src">/Users/example/my skills/foo#bar<`) {
+		t.Errorf("パスがそのまま表示されていない:\n%s", out)
 	}
-	if !strings.Contains(out, "<code>skills/rel</code>") {
-		t.Error("相対パスがテキスト表示へ縮退していない")
+	if strings.Contains(out, "%20") || strings.Contains(out, "%23") {
+		t.Error("パスが URL エスケープされている")
 	}
 }

@@ -72,8 +72,11 @@ func TestRunEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("html が書き出されていない: %v", err)
 	}
-	if !bytes.Contains(html, []byte(`href="file:///Users/example/.claude/skills/ohayou"`)) {
-		t.Error("html にスキルの file:// リンクがない")
+	if !bytes.Contains(html, []byte(`class="path copy-src">/Users/example/.claude/skills/ohayou<`)) {
+		t.Error("html にスキルパスのテキスト表示がない")
+	}
+	if bytes.Contains(html, []byte(`href="file://`)) {
+		t.Error("html にスキルの file:// リンクが残っている")
 	}
 	if bytes.Contains(html, []byte("現れてはならない")) {
 		t.Error("スキル展開本文が html に漏れている")
