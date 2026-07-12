@@ -4,7 +4,7 @@ Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.
 
 ## インストール
 
-Go 1.24 以降が必要です。
+Go 1.24以降が必要です。
 
 ```bash
 # このリポジトリを clone した状態で
@@ -20,7 +20,7 @@ go build -o cctx ./cmd/cctx
 
 ```bash
 cctx path/to/session.jsonl        # パス直接指定
-cctx bbfac067                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
+cctx 1a2b3c4d                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
 cctx --latest                     # 最新セッション (ファイル mtime 基準)
 cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名の部分一致) で絞った最新セッション
 ```
