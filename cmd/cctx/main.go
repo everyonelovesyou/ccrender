@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -138,28 +139,35 @@ func run(c *config, stdout, stderr io.Writer) error {
 	if outDir == "" {
 		outDir = "."
 	}
-	writeOut := func(ext string, renderFn func(io.Writer, *parse.Session, string) error, tmpl string) error {
-		out := filepath.Join(outDir, session.ID+ext)
-		f, err := os.Create(out)
-		if err != nil {
-			return fmt.Errorf("出力先に書けません: %w", err)
-		}
-		defer f.Close()
-		if err := renderFn(f, session, tmpl); err != nil {
+	// 失敗時に不完全・部分的な成果物を残さないよう、全形式をバッファへ描画してから書き出す
+	type output struct {
+		path string
+		data []byte
+	}
+	var outputs []output
+	renderTo := func(ext string, renderFn func(io.Writer, *parse.Session, string) error, tmpl string) error {
+		var buf bytes.Buffer
+		if err := renderFn(&buf, session, tmpl); err != nil {
 			return err
 		}
-		fmt.Fprintf(stderr, "cctx: %s を書き出しました\n", out)
+		outputs = append(outputs, output{filepath.Join(outDir, session.ID+ext), buf.Bytes()})
 		return nil
 	}
 	if c.format == "md" || c.format == "both" {
-		if err := writeOut(".md", render.Markdown, c.tmplMD); err != nil {
+		if err := renderTo(".md", render.Markdown, c.tmplMD); err != nil {
 			return err
 		}
 	}
 	if c.format == "html" || c.format == "both" {
-		if err := writeOut(".html", render.HTML, c.tmplHTML); err != nil {
+		if err := renderTo(".html", render.HTML, c.tmplHTML); err != nil {
 			return err
 		}
+	}
+	for _, o := range outputs {
+		if err := os.WriteFile(o.path, o.data, 0o644); err != nil {
+			return fmt.Errorf("出力先に書けません: %w", err)
+		}
+		fmt.Fprintf(stderr, "cctx: %s を書き出しました\n", o.path)
 	}
 	return nil
 }

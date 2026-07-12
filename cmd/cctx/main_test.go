@@ -91,6 +91,54 @@ func TestRunRejectsUnsafeSessionID(t *testing.T) {
 	}
 }
 
+func TestRunNoPartialFileOnRenderError(t *testing.T) {
+	// 実行時に必ず失敗するテンプレート (存在しないフィールド参照)
+	tmplDir := t.TempDir()
+	tmpl := filepath.Join(tmplDir, "broken.md.tmpl")
+	if err := os.WriteFile(tmpl, []byte("{{.NoSuchField}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outDir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	c := &config{
+		arg:         "../../internal/parse/testdata/session_small.jsonl",
+		format:      "md",
+		outDir:      outDir,
+		tmplMD:      tmpl,
+		projectsDir: t.TempDir(),
+	}
+	if err := run(c, &stdout, &stderr); err == nil {
+		t.Fatal("レンダリング失敗がエラーになっていない")
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "sess-0001.md")); err == nil {
+		t.Error("失敗したのに不完全な出力ファイルが残っている")
+	}
+}
+
+func TestRunBothNoPartialSuccess(t *testing.T) {
+	// --format both で HTML 側だけ失敗しても、md だけ書かれる部分成功にしない
+	tmplDir := t.TempDir()
+	tmpl := filepath.Join(tmplDir, "broken.html.tmpl")
+	if err := os.WriteFile(tmpl, []byte("{{.NoSuchField}}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outDir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	c := &config{
+		arg:         "../../internal/parse/testdata/session_small.jsonl",
+		format:      "both",
+		outDir:      outDir,
+		tmplHTML:    tmpl,
+		projectsDir: t.TempDir(),
+	}
+	if err := run(c, &stdout, &stderr); err == nil {
+		t.Fatal("HTML レンダリング失敗がエラーになっていない")
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "sess-0001.md")); err == nil {
+		t.Error("HTML が失敗したのに md だけ書き出されている")
+	}
+}
+
 func TestRunStdout(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	c := &config{
