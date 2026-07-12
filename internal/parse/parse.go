@@ -135,12 +135,21 @@ func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock) Ev
 		Summary: toolSummary(b.Name, b.Input),
 		Input:   formatInput(b.Input),
 	}
+	kind := KindToolCall
 	if res, ok := results[b.ID]; ok {
 		tc.HasResult = true
 		tc.Result = res.resultText()
 		tc.IsError = res.IsError
+		if res.IsError {
+			if s, isStr := res.resultString(); isStr {
+				if reason, deny := denyReason(s); deny {
+					kind = KindPermissionDeny
+					tc.DenyReason = reason
+				}
+			}
+		}
 	}
-	return Event{Kind: KindToolCall, Timestamp: ts, Tool: tc}
+	return Event{Kind: kind, Timestamp: ts, Tool: tc}
 }
 
 func computeStats(events []Event, skipped int) Stats {
