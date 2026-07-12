@@ -23,6 +23,8 @@ func TestValidateFlags(t *testing.T) {
 		{"--project 単独", config{project: "x", arg: "abc"}, "--project"},
 		{"不正な format", config{format: "pdf", arg: "abc"}, "format"},
 		{"入力なし", config{}, "入力"},
+		{"位置引数が2つ以上", config{arg: "abc", narg: 2}, "位置引数"},
+		{"位置引数1つは OK", config{arg: "abc", narg: 1}, ""},
 		{"通常ケース", config{arg: "abc", format: "both"}, ""},
 	}
 	for _, c := range cases {

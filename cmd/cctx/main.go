@@ -18,6 +18,7 @@ import (
 
 type config struct {
 	arg         string
+	narg        int
 	format      string
 	outDir      string
 	tmplMD      string
@@ -47,6 +48,9 @@ func (c *config) validate() error {
 	}
 	if c.format != "md" && c.format != "html" && c.format != "both" {
 		return fmt.Errorf("--format は md|html|both のいずれかです (指定: %s)", c.format)
+	}
+	if c.narg > 1 {
+		return fmt.Errorf("位置引数は1つだけ指定できます (指定: %d個)", c.narg)
 	}
 	if c.latest && c.arg != "" {
 		return fmt.Errorf("--latest と位置引数は同時に指定できません")
@@ -84,6 +88,7 @@ func main() {
 	flag.StringVar(&c.project, "project", "", "--latest の対象をプロジェクト名で絞る")
 	flag.Parse()
 	c.arg = flag.Arg(0)
+	c.narg = flag.NArg()
 
 	if err := run(&c, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "cctx:", err)
