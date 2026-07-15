@@ -16,9 +16,9 @@ func TestSystemNoteCompactBoundary(t *testing.T) {
 func TestStats(t *testing.T) {
 	s := mustParse(t)
 	want := Stats{
-		UserMessages:      1,
-		AssistantMessages: 1,
-		ToolCalls:         2, // Bash (結果あり) + Read (結果なし)
+		UserMessages:      2, // 「こんにちは」+「次のファイルを直して」
+		AssistantMessages: 2, // 「確認します」+「コミットします」(空見出しは含まない)
+		ToolCalls:         4, // Bash (結果あり) + Read (結果なし) + Edit (相対化パス) + Bash (複数行)
 		PermissionDenies:  1, // Edit
 		SystemNotes:       1, // compact_boundary
 		SubagentCalls:     1, // Agent

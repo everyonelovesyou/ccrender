@@ -164,11 +164,12 @@
   <h1>sess-0001 <small>· /Users/example/proj · 2026-07-12 00:00 〜 00:00</small></h1>
   <div class="stats">
     <span class="u">👤 1</span>
-    <span>🤖 1</span>
-    <span>🔧 2</span>
+    <span>🤖 2</span>
+    <span>🔧 4</span>
     <span class="k">スキル 2</span>
     <span class="d">🚫 1</span>
     <span class="s">🤝 1</span>
+    <span class="m">claude-fable-5, claude-opus-4-8</span>
   </div>
 </header>
 <div class="layout">
@@ -286,6 +287,51 @@
   <span class="skill">🔧 Skill(<b>superpowers:brainstorming</b>)</span>
   <span class="path copy-src">/Users/example/plug/skills/brainstorming</span>
   <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+</div>
+<div class="msg ev-talk" id="e9">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span></div>
+  </div>
+</div>
+<div class="tools ev-tool" id="e10" data-tool="Edit">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Edit</span>
+      <code class="copy-src">internal/render/render.go</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{
+  &#34;file_path&#34;: &#34;internal/render/render.go&#34;
+}</pre>
+    <pre class="result">ok</pre>
+  </details>
+</div>
+<div class="msg ev-talk" id="e11">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span>
+      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+    <div class="text copy-src">コミットします</div>
+  </div>
+</div>
+<div class="tools ev-tool" id="e12" data-tool="Bash">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Bash</span>
+      <code class="copy-src">git commit -m &#34;$(cat &lt;&lt;&#39;EOF&#39;
+feat: 変更
+EOF
+)&#34;</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{
+  &#34;command&#34;: &#34;git commit -m \&#34;$(cat &lt;&lt;&#39;EOF&#39;\nfeat: 変更\nEOF\n)\&#34;&#34;
+}</pre>
+    <pre class="result">[main abc1234] feat: 変更</pre>
+  </details>
 </div>
 </main>
 </div>

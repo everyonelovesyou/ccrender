@@ -21,7 +21,8 @@ func fixtureSession() *parse.Session {
 		ID:          "sess-0001",
 		ProjectPath: "/Users/example/proj",
 		StartedAt:   at(0),
-		EndedAt:     at(8),
+		EndedAt:     at(11),
+		Models:      []string{"claude-fable-5", "claude-opus-4-8"},
 		Events: []parse.Event{
 			{Kind: parse.KindUserMessage, Timestamp: at(0), Text: "こんにちは"},
 			{Kind: parse.KindAssistantMessage, Timestamp: at(1), Text: "確認します"},
@@ -50,9 +51,25 @@ func fixtureSession() *parse.Session {
 				Name: "superpowers:brainstorming",
 				Path: "/Users/example/plug/skills/brainstorming",
 			}},
+			// テキストなしで Edit だけ呼ぶターン: 空テキストの見出しが挿入され、
+			// ルート配下のパスは相対化されて表示される。
+			{Kind: parse.KindAssistantMessage, Timestamp: at(9)},
+			{Kind: parse.KindToolCall, Timestamp: at(9), Tool: &parse.ToolCall{
+				Name: "Edit", Summary: "internal/render/render.go",
+				Input: "{\n  \"file_path\": \"internal/render/render.go\"\n}",
+				HasResult: true, Result: "ok",
+			}},
+			// heredoc を含む複数行 Bash: フェンス全文 (md) / 全文 copy-src (html) で表示される。
+			{Kind: parse.KindAssistantMessage, Timestamp: at(10), Text: "コミットします"},
+			{Kind: parse.KindToolCall, Timestamp: at(11), Tool: &parse.ToolCall{
+				Name:      "Bash",
+				Summary:   "git commit -m \"$(cat <<'EOF'\nfeat: 変更\nEOF\n)\"",
+				Input:     "{\n  \"command\": \"git commit -m \\\"$(cat <<'EOF'\\nfeat: 変更\\nEOF\\n)\\\"\"\n}",
+				HasResult: true, Result: "[main abc1234] feat: 変更",
+			}},
 		},
 		Stats: parse.Stats{
-			UserMessages: 1, AssistantMessages: 1, ToolCalls: 2,
+			UserMessages: 1, AssistantMessages: 2, ToolCalls: 4,
 			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1,
 			SkillInvocations: 2, SkippedLines: 1,
 		},

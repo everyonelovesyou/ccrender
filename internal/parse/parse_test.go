@@ -40,8 +40,8 @@ func TestSessionHeader(t *testing.T) {
 	if !s.StartedAt.Equal(wantStart) {
 		t.Errorf("StartedAt = %v", s.StartedAt)
 	}
-	// 末尾はエージェント発動のスキル展開エントリ (00:00:14Z)
-	wantEnd := time.Date(2026, 7, 12, 0, 0, 14, 0, time.UTC)
+	// 末尾は複数行 Bash ターンの tool_result (00:00:19Z)
+	wantEnd := time.Date(2026, 7, 12, 0, 0, 19, 0, time.UTC)
 	if !s.EndedAt.Equal(wantEnd) {
 		t.Errorf("EndedAt = %v", s.EndedAt)
 	}
@@ -53,24 +53,33 @@ func TestSessionHeader(t *testing.T) {
 func TestUserMessages(t *testing.T) {
 	s := mustParse(t)
 	got := eventsOfKind(s, KindUserMessage)
-	if len(got) != 1 {
+	// 「こんにちは」に加え、テキストなし Edit ターンの直前にある実発話
+	// 「次のファイルを直して」の2件。
+	if len(got) != 2 {
 		t.Fatalf("UserMessage %d件: %+v", len(got), got)
 	}
 	if got[0].Text != "こんにちは" {
 		t.Errorf("ノイズ除去後 Text = %q", got[0].Text)
+	}
+	if got[1].Text != "次のファイルを直して" {
+		t.Errorf("2件目の Text = %q", got[1].Text)
 	}
 }
 
 func TestAssistantMessages(t *testing.T) {
 	s := mustParse(t)
 	got := eventsOfKind(s, KindAssistantMessage)
-	// 本文付きの1件に加え、system_note (compact) 直後のツール呼び出しと
-	// エージェント発動 skill_invocation の前に空テキストの見出しが挿入される。
-	if len(got) != 3 || got[0].Text != "確認します" {
+	// 本文付きの2件 (「確認します」「コミットします」) に加え、
+	// system_note (compact) 直後のツール呼び出し、エージェント発動 skill_invocation の前、
+	// テキストなし Edit ターンの前に空テキストの見出しが挿入される。
+	if len(got) != 5 || got[0].Text != "確認します" {
 		t.Fatalf("AssistantMessage: %+v", got)
 	}
-	if got[1].Text != "" || got[2].Text != "" {
-		t.Errorf("挿入された見出しの Text は空であるべき: %+v", got[1:])
+	if got[1].Text != "" || got[2].Text != "" || got[3].Text != "" {
+		t.Errorf("挿入された見出しの Text は空であるべき: %+v", got[1:4])
+	}
+	if got[4].Text != "コミットします" {
+		t.Errorf("末尾のテキスト付きメッセージ = %q", got[4].Text)
 	}
 }
 
