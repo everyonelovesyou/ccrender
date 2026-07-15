@@ -16,8 +16,10 @@
 {{.Text}}
 {{else if eq .Kind "assistant_message"}}
 ## 🤖 Assistant ({{.Timestamp.Format "15:04"}})
+{{- if .Text}}
 
 {{.Text}}
+{{- end}}
 {{else if eq .Kind "tool_call"}}
 🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
 {{- if .Tool.HasResult}}

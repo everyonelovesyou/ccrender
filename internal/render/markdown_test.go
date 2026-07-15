@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,6 +102,32 @@ func TestMarkdownBadOverrideTemplate(t *testing.T) {
 	}
 	if err := Markdown(&buf, fixtureSession(), dir+"/no-such.tmpl"); err == nil {
 		t.Fatal("存在しないテンプレートが通った")
+	}
+}
+
+func TestMarkdownEmptyAssistantHeading(t *testing.T) {
+	// テキストなしでツールだけ呼んだターンの assistant_message は見出し行のみで、余分な空行が続かない
+	s := &parse.Session{
+		ID: "s1", ProjectPath: "/proj",
+		Events: []parse.Event{
+			{Kind: parse.KindAssistantMessage, Timestamp: time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)},
+			{Kind: parse.KindToolCall, Timestamp: time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC), Tool: &parse.ToolCall{Name: "Edit", Summary: "a.go"}},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "## 🤖 Assistant (10:00)") {
+		t.Error("見出しが描画されていない")
+	}
+	if strings.Contains(out, "## 🤖 Assistant (10:00)\n\n\n") {
+		t.Error("空見出しの直後に余分な (2つ以上の) 空行が続いている")
+	}
+	// 見出し直後は他イベント間と同じ1行の空行のみを挟んで次のツール行に接続する
+	if !strings.Contains(out, "## 🤖 Assistant (10:00)\n\n🔧 **Edit**") {
+		t.Errorf("見出し直後の空行が乱れている:\n%s", out)
 	}
 }
 

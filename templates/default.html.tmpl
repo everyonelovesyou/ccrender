@@ -207,8 +207,12 @@
   <div class="avatar">🤖</div>
   <div class="body">
     <div class="meta"><span class="who">Claude</span><span class="ts">{{$e.Timestamp.Format "15:04"}}</span>
-      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+      {{- if $e.Text}}
+      <button class="copy" title="発話をコピー">⧉ コピー</button>
+      {{- end}}</div>
+    {{- if $e.Text}}
     <div class="text copy-src">{{$e.Text}}</div>
+    {{- end}}
   </div>
 </div>
 {{- else if eq $e.Kind "tool_call"}}
