@@ -56,6 +56,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 		}
 		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, idx, warn)...)
 	}
+	s.Events = insertAssistantHeadings(s.Events)
 	s.Stats = computeStats(s.Events, skipped)
 	return s, nil
 }
@@ -210,6 +211,36 @@ func subagentEvent(b contentBlock, ts time.Time, results map[string]contentBlock
 	return Event{Kind: KindSubagentCall, Timestamp: ts, Subagent: &sub}
 }
 
+// insertAssistantHeadings は、直前に assistant の発話が無いまま assistant 側イベント
+// (ツール呼び出し等) が始まる箇所へ、空テキストの assistant_message (見出しのみ) を挿入する。
+// テキストなしでツールだけ呼んだターンの帰属が user に見える問題への対処。
+func insertAssistantHeadings(events []Event) []Event {
+	out := make([]Event, 0, len(events))
+	inAssistant := false
+	for _, e := range events {
+		switch e.Kind {
+		case KindAssistantMessage:
+			inAssistant = true
+		case KindUserMessage, KindSystemNote:
+			inAssistant = false
+		case KindSkillInvocation:
+			if e.Skill != nil && e.Skill.ByUser {
+				inAssistant = false
+			} else if !inAssistant {
+				out = append(out, Event{Kind: KindAssistantMessage, Timestamp: e.Timestamp})
+				inAssistant = true
+			}
+		case KindToolCall, KindPermissionDeny, KindSubagentCall:
+			if !inAssistant {
+				out = append(out, Event{Kind: KindAssistantMessage, Timestamp: e.Timestamp})
+				inAssistant = true
+			}
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 func computeStats(events []Event, skipped int) Stats {
 	st := Stats{SkippedLines: skipped}
 	for _, e := range events {
@@ -217,7 +248,9 @@ func computeStats(events []Event, skipped int) Stats {
 		case KindUserMessage:
 			st.UserMessages++
 		case KindAssistantMessage:
-			st.AssistantMessages++
+			if e.Text != "" {
+				st.AssistantMessages++
+			}
 		case KindToolCall:
 			st.ToolCalls++
 		case KindPermissionDeny:

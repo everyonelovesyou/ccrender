@@ -64,8 +64,13 @@ func TestUserMessages(t *testing.T) {
 func TestAssistantMessages(t *testing.T) {
 	s := mustParse(t)
 	got := eventsOfKind(s, KindAssistantMessage)
-	if len(got) != 1 || got[0].Text != "確認します" {
+	// 本文付きの1件に加え、system_note (compact) 直後のツール呼び出しと
+	// エージェント発動 skill_invocation の前に空テキストの見出しが挿入される。
+	if len(got) != 3 || got[0].Text != "確認します" {
 		t.Fatalf("AssistantMessage: %+v", got)
+	}
+	if got[1].Text != "" || got[2].Text != "" {
+		t.Errorf("挿入された見出しの Text は空であるべき: %+v", got[1:])
 	}
 }
 
@@ -110,6 +115,61 @@ func parseString(t *testing.T, jsonl string) *Session {
 		t.Fatalf("ParseFile: %v", err)
 	}
 	return s
+}
+
+// テキストなしでツールだけ呼んだターンにも assistant_message (空テキスト) が挿入される
+func TestHeadingInsertedForToolOnlyTurn(t *testing.T) {
+	jsonl := `{"type":"user","sessionId":"s1","timestamp":"2026-07-15T10:00:00Z","cwd":"/proj","message":{"role":"user","content":"直して"}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:00:05Z","message":{"role":"assistant","model":"claude-fable-5","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/proj/a.go"}}]}}
+{"type":"user","sessionId":"s1","timestamp":"2026-07-15T10:00:06Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}
+`
+	s := parseString(t, jsonl)
+	kinds := eventKinds(s.Events)
+	want := []string{"user_message", "assistant_message", "tool_call"}
+	if !equalStrings(kinds, want) {
+		t.Fatalf("kinds = %v, want %v", kinds, want)
+	}
+	if s.Events[1].Text != "" {
+		t.Errorf("挿入された見出しの Text = %q, want empty", s.Events[1].Text)
+	}
+	if s.Stats.AssistantMessages != 0 {
+		t.Errorf("空見出しは AssistantMessages に数えない: got %d", s.Stats.AssistantMessages)
+	}
+}
+
+// テキスト付きターンでは見出しが重複しない
+func TestNoDuplicateHeadingWhenTextPresent(t *testing.T) {
+	jsonl := `{"type":"user","sessionId":"s1","timestamp":"2026-07-15T10:00:00Z","cwd":"/proj","message":{"role":"user","content":"直して"}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:00:05Z","message":{"role":"assistant","model":"claude-fable-5","content":[{"type":"text","text":"直します"}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:00:06Z","message":{"role":"assistant","model":"claude-fable-5","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/proj/a.go"}}]}}
+{"type":"user","sessionId":"s1","timestamp":"2026-07-15T10:00:07Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}
+`
+	s := parseString(t, jsonl)
+	kinds := eventKinds(s.Events)
+	want := []string{"user_message", "assistant_message", "tool_call"}
+	if !equalStrings(kinds, want) {
+		t.Fatalf("kinds = %v, want %v", kinds, want)
+	}
+}
+
+func eventKinds(events []Event) []string {
+	var ks []string
+	for _, e := range events {
+		ks = append(ks, e.Kind)
+	}
+	return ks
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestSessionModels(t *testing.T) {
