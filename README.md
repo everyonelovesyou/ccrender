@@ -65,6 +65,7 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 | `EndedAt` | `time.Time` | 最後のレコードの timestamp |
 | `Events` | `[]Event` | 時系列順のイベント一覧 |
 | `Stats` | `Stats` | イベント種別ごとの件数 (ヘッダー表示用) |
+| `Models` | `[]string` | 登場順・重複なしのモデル ID 一覧 (ヘッダー表示用)。空なら該当行は表示しない |
 
 ### Stats
 
@@ -134,6 +135,7 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 | --- | --- | --- |
 | `truncateLines` | `truncateLines n s` | 文字列 `s` を先頭 `n` 行に切り詰め、`… (残りX行省略)` を付記する。パイプ記法では `{{.Tool.Result \| truncateLines 20}}` のように使う |
 | `firstLine` | `firstLine s` | 文字列 `s` の先頭1行を返す (HTML の `<details>` サマリー用) |
+| `join` | `join sep ss` | 文字列スライス `ss` を `sep` で連結する。パイプ記法では `{{join ", " .Models}}` のように使う |
 
 ### `--template-md` / `--template-html` による差し替え例
 

@@ -55,6 +55,7 @@
   header .stats .d { background: var(--deny-bg); color: var(--deny); }
   header .stats .s { background: var(--sub-bg); color: var(--sub); }
   header .stats .k { background: var(--skill-bg); color: var(--skill); }
+  header .stats .m { font-family: var(--mono); font-size: 12px; }
 
   /* ── layout ── */
   .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
@@ -168,6 +169,9 @@
     <span class="k">スキル {{.Stats.SkillInvocations}}</span>
     <span class="d">🚫 {{.Stats.PermissionDenies}}</span>
     <span class="s">🤝 {{.Stats.SubagentCalls}}</span>
+    {{- if .Models}}
+    <span class="m">{{join ", " .Models}}</span>
+    {{- end}}
   </div>
 </header>
 <div class="layout">
