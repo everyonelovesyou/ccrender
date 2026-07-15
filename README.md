@@ -134,7 +134,6 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 | --- | --- | --- |
 | `truncateLines` | `truncateLines n s` | 文字列 `s` を先頭 `n` 行に切り詰め、`… (残りX行省略)` を付記する。パイプ記法では `{{.Tool.Result \| truncateLines 20}}` のように使う |
 | `firstLine` | `firstLine s` | 文字列 `s` の先頭1行を返す (HTML の `<details>` サマリー用) |
-| `fileURL` | `fileURL path` | 絶対パスから `file://` URL を生成する (HTML 用。空白や `#` を %エスケープ)。絶対パスでない場合は空文字列を返す |
 
 ### `--template-md` / `--template-html` による差し替え例
 
