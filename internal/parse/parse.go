@@ -54,7 +54,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 				s.Models = append(s.Models, rec.Message.Model)
 			}
 		}
-		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, idx, warn)...)
+		s.Events = append(s.Events, buildEvents(rec, ts, s.ProjectPath, results, subs, idx, warn)...)
 	}
 	s.Events = insertAssistantHeadings(s.Events)
 	s.Stats = computeStats(s.Events, skipped)
@@ -113,7 +113,7 @@ func collectToolResults(records []rawRecord) map[string]contentBlock {
 }
 
 // buildEvents は1レコードをイベント列へ変換する。
-func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) []Event {
+func buildEvents(rec rawRecord, ts time.Time, projectRoot string, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) []Event {
 	var events []Event
 	switch rec.Type {
 	case "user":
@@ -140,7 +140,7 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 					events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
 				}
 			case "tool_use":
-				events = append(events, toolEvent(b, ts, results, subs, idx, warn))
+				events = append(events, toolEvent(b, ts, projectRoot, results, subs, idx, warn))
 			}
 		}
 	case "system":
@@ -153,10 +153,10 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 }
 
 // toolEvent は tool_use ブロックを ToolCall (または Agent の場合 SubagentCall) イベントへ変換する。
-func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) Event {
+func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) Event {
 	tc := &ToolCall{
 		Name:    b.Name,
-		Summary: toolSummary(b.Name, b.Input),
+		Summary: toolSummary(b.Name, b.Input, projectRoot),
 		Input:   formatInput(b.Input),
 	}
 	kind := KindToolCall

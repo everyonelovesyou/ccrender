@@ -42,17 +42,23 @@ func TestToolSummary(t *testing.T) {
 	cases := []struct {
 		name  string
 		input string
+		root  string
 		want  string
 	}{
-		{"Bash", `{"command":"go test ./...","description":"テスト"}`, "go test ./..."},
-		{"Edit", `{"file_path":"/a/b.go","old_string":"x"}`, "/a/b.go"},
-		{"Read", `{"file_path":"/a/c.go"}`, "/a/c.go"},
-		{"Agent", `{"description":"調査","prompt":"..."}`, "調査"},
-		{"Grep", `{"pattern":"foo","path":"/src"}`, "foo"},
-		{"UnknownTool", `{"other":"x"}`, ""},
+		{name: "Bash", input: `{"command":"go test ./...","description":"テスト"}`, root: "", want: "go test ./..."},
+		{name: "Edit", input: `{"file_path":"/a/b.go","old_string":"x"}`, root: "", want: "/a/b.go"},
+		{name: "Read", input: `{"file_path":"/a/c.go"}`, root: "", want: "/a/c.go"},
+		{name: "Agent", input: `{"description":"調査","prompt":"..."}`, root: "", want: "調査"},
+		{name: "Grep", input: `{"pattern":"foo","path":"/src"}`, root: "", want: "foo"},
+		{name: "UnknownTool", input: `{"other":"x"}`, root: "", want: ""},
+		{name: "Edit", input: `{"file_path":"/proj/internal/a.go"}`, root: "/proj", want: "internal/a.go"},
+		{name: "Read", input: `{"file_path":"/other/b.go"}`, root: "/proj", want: "/other/b.go"},
+		{name: "Bash", input: `{"command":"cat /proj/internal/a.go"}`, root: "/proj", want: "cat /proj/internal/a.go"},
+		{name: "Grep", input: `{"path":"/proj/internal"}`, root: "/proj", want: "internal"},
+		{name: "Edit", input: `{"file_path":"/proj"}`, root: "/proj", want: "/proj"},
 	}
 	for _, c := range cases {
-		if got := toolSummary(c.name, json.RawMessage(c.input)); got != c.want {
+		if got := toolSummary(c.name, json.RawMessage(c.input), c.root); got != c.want {
 			t.Errorf("toolSummary(%s) = %q, want %q", c.name, got, c.want)
 		}
 	}
