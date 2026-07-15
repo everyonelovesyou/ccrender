@@ -57,13 +57,29 @@ func TestRunEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"こんにちは", "確認します", "🚫", "こっちは触らないで", "サブエージェント", "(結果なし)"} {
+	for _, want := range []string{
+		"こんにちは", "確認します", "🚫", "こっちは触らないで", "サブエージェント", "(結果なし)",
+		"/ohayou 今日も", "Skill(ohayou)", "Skill(superpowers:brainstorming)",
+	} {
 		if !bytes.Contains(md, []byte(want)) {
 			t.Errorf("md に %q がない", want)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(outDir, "sess-0001.html")); err != nil {
-		t.Errorf("html が書き出されていない: %v", err)
+	if bytes.Contains(md, []byte("現れてはならない")) {
+		t.Error("スキル展開本文が md に漏れている")
+	}
+	html, err := os.ReadFile(filepath.Join(outDir, "sess-0001.html"))
+	if err != nil {
+		t.Fatalf("html が書き出されていない: %v", err)
+	}
+	if !bytes.Contains(html, []byte(`class="path copy-src">/Users/example/.claude/skills/ohayou<`)) {
+		t.Error("html にスキルパスのテキスト表示がない")
+	}
+	if bytes.Contains(html, []byte(`href="file://`)) {
+		t.Error("html にスキルの file:// リンクが残っている")
+	}
+	if bytes.Contains(html, []byte("現れてはならない")) {
+		t.Error("スキル展開本文が html に漏れている")
 	}
 }
 

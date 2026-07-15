@@ -50,3 +50,69 @@ func TestHTMLEmptySession(t *testing.T) {
 		t.Fatalf("空セッションでエラー: %v", err)
 	}
 }
+
+func TestHTMLSkillChip(t *testing.T) {
+	var buf bytes.Buffer
+	if err := HTML(&buf, fixtureSession(), ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	// パスはリンクではなくコピー用テキストとして表示する
+	if strings.Contains(out, `href="file://`) {
+		t.Error("スキルパスが file:// リンクになっている (テキスト表示が期待値)")
+	}
+	if !strings.Contains(out, `class="path copy-src">/Users/example/.claude/skills/ohayou<`) {
+		t.Error("ユーザー呼び出しのパス表示がない")
+	}
+	if !strings.Contains(out, `class="path copy-src">/Users/example/plug/skills/brainstorming<`) {
+		t.Error("エージェント発動のパス表示がない")
+	}
+	// ユーザー呼び出しはコマンド再現がユーザーバブルに入る
+	if !strings.Contains(out, "/ohayou 今日も") {
+		t.Error("コマンド再現がない")
+	}
+	if !strings.Contains(out, `class="skill"`) {
+		t.Error(".skill チップがない")
+	}
+}
+
+func TestHTMLTimelineIncludesUserSkill(t *testing.T) {
+	var buf bytes.Buffer
+	if err := HTML(&buf, fixtureSession(), ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	// nav.toc 内にユーザー発動スキルの Command がリンクとして出力される
+	tocEnd := strings.Index(out, "</nav>")
+	if tocEnd < 0 {
+		t.Fatal("nav.toc が見つからない")
+	}
+	toc := out[:tocEnd]
+	if !strings.Contains(toc, "/ohayou 今日も") {
+		t.Error("ユーザー発動スキルのコマンドがタイムラインに含まれていない")
+	}
+	// エージェント発動スキルはタイムラインに含まれない
+	if strings.Contains(toc, "brainstorming") {
+		t.Error("エージェント発動スキルがタイムラインに含まれている")
+	}
+}
+
+func TestHTMLSkillPathShownVerbatim(t *testing.T) {
+	// パスは URL エスケープせず、そのままテキストで表示する
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindSkillInvocation, Skill: &parse.SkillInvocation{
+			Name: "odd", Path: "/Users/example/my skills/foo#bar",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `class="path copy-src">/Users/example/my skills/foo#bar<`) {
+		t.Errorf("パスがそのまま表示されていない:\n%s", out)
+	}
+	if strings.Contains(out, "%20") || strings.Contains(out, "%23") {
+		t.Error("パスが URL エスケープされている")
+	}
+}

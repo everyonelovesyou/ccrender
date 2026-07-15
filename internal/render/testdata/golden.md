@@ -2,7 +2,7 @@
 
 - プロジェクト: /Users/example/proj
 - 期間: 2026-07-12 00:00 〜 2026-07-12 00:00
-- イベント: user 1 / assistant 1 / ツール 2 / 権限拒否 1 / サブエージェント 1
+- イベント: user 1 / assistant 1 / ツール 2 / 権限拒否 1 / サブエージェント 1 / スキル 2
 - 注意: 1行をスキップ
 
 ## 👤 User (00:00)
@@ -60,4 +60,12 @@ Investigation summary.
 🔧 **Read** — `/tmp/y.txt`
 
 (結果なし)
+
+## 👤 User (00:00)
+
+/ohayou 今日も
+
+🔧 Skill(ohayou) `/Users/example/.claude/skills/ohayou`
+
+🔧 Skill(superpowers:brainstorming) `/Users/example/plug/skills/brainstorming`
 

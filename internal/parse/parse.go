@@ -31,6 +31,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 	}
 
 	results := collectToolResults(records)
+	idx := collectSkillIndex(records)
 	subs := loadSubagents(strings.TrimSuffix(path, ".jsonl") + "/subagents")
 	s := &Session{}
 	for _, rec := range records {
@@ -47,7 +48,7 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 			}
 			s.EndedAt = ts
 		}
-		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, warn)...)
+		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, idx, warn)...)
 	}
 	s.Stats = computeStats(s.Events, skipped)
 	return s, nil
@@ -105,10 +106,17 @@ func collectToolResults(records []rawRecord) map[string]contentBlock {
 }
 
 // buildEvents は1レコードをイベント列へ変換する。
-func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) []Event {
+func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) []Event {
 	var events []Event
 	switch rec.Type {
 	case "user":
+		if p, ok := skillExpansionPath(rec); ok {
+			if rec.SourceToolUseID != "" {
+				// エージェント発動: Skill tool_use 側で描画する (対応が無ければ非表示)
+				return nil
+			}
+			return []Event{userSkillEvent(rec, p, ts, idx)}
+		}
 		for _, b := range rec.Message.blocks() {
 			if b.Type != "text" {
 				continue // tool_result は tool_use 側で統合済み
@@ -125,7 +133,7 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 					events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
 				}
 			case "tool_use":
-				events = append(events, toolEvent(b, ts, results, subs, warn))
+				events = append(events, toolEvent(b, ts, results, subs, idx, warn))
 			}
 		}
 	case "system":
@@ -138,7 +146,7 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 }
 
 // toolEvent は tool_use ブロックを ToolCall (または Agent の場合 SubagentCall) イベントへ変換する。
-func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, warn io.Writer) Event {
+func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) Event {
 	tc := &ToolCall{
 		Name:    b.Name,
 		Summary: toolSummary(b.Name, b.Input),
@@ -162,6 +170,11 @@ func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, su
 		// 拒否された Agent tool_use は SubagentCall ではなく PermissionDeny として扱う
 		// (サブエージェントは実際には起動されていないため)
 		return Event{Kind: kind, Timestamp: ts, Tool: tc}
+	}
+	if b.Name == "Skill" {
+		if p, ok := idx.expansions[b.ID]; ok {
+			return Event{Kind: KindSkillInvocation, Timestamp: ts, Skill: agentSkillInvocation(b, p)}
+		}
 	}
 	if b.Name == "Agent" {
 		return subagentEvent(b, ts, results, subs, warn)
@@ -207,6 +220,8 @@ func computeStats(events []Event, skipped int) Stats {
 			st.SystemNotes++
 		case KindSubagentCall:
 			st.SubagentCalls++
+		case KindSkillInvocation:
+			st.SkillInvocations++
 		}
 	}
 	return st

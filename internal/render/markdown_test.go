@@ -41,10 +41,19 @@ func fixtureSession() *parse.Session {
 			{Kind: parse.KindToolCall, Timestamp: at(6), Tool: &parse.ToolCall{
 				Name: "Read", Summary: "/tmp/y.txt", Input: "{}", HasResult: false,
 			}},
+			{Kind: parse.KindSkillInvocation, Timestamp: at(7), Skill: &parse.SkillInvocation{
+				Name: "ohayou", Path: "/Users/example/.claude/skills/ohayou",
+				ByUser: true, Command: "/ohayou 今日も",
+			}},
+			{Kind: parse.KindSkillInvocation, Timestamp: at(8), Skill: &parse.SkillInvocation{
+				Name: "superpowers:brainstorming",
+				Path: "/Users/example/plug/skills/brainstorming",
+			}},
 		},
 		Stats: parse.Stats{
 			UserMessages: 1, AssistantMessages: 1, ToolCalls: 2,
-			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1, SkippedLines: 1,
+			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1,
+			SkillInvocations: 2, SkippedLines: 1,
 		},
 	}
 }
