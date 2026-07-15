@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -47,6 +48,11 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 				s.StartedAt = ts
 			}
 			s.EndedAt = ts
+		}
+		if rec.Type == "assistant" && rec.Message != nil && rec.Message.Model != "" {
+			if !slices.Contains(s.Models, rec.Message.Model) {
+				s.Models = append(s.Models, rec.Message.Model)
+			}
 		}
 		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, idx, warn)...)
 	}

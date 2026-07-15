@@ -22,6 +22,7 @@ type Session struct {
 	ProjectPath string // レコードの cwd フィールドから取得
 	StartedAt   time.Time
 	EndedAt     time.Time
+	Models      []string // assistant レコードに現れたモデル ID (登場順・重複なし)
 	Events      []Event
 	Stats       Stats
 }

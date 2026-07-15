@@ -22,6 +22,7 @@ type rawRecord struct {
 
 type rawMessage struct {
 	Role    string          `json:"role"`
+	Model   string          `json:"model"`
 	Content json.RawMessage `json:"content"`
 }
 

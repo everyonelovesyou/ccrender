@@ -96,3 +96,36 @@ func TestNoiseStrip(t *testing.T) {
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
+
+// parseString は jsonl 文字列を一時ファイルに書いて ParseFile を呼ぶ。
+func parseString(t *testing.T, jsonl string) *Session {
+	t.Helper()
+	dir := t.TempDir()
+	path := dir + "/session.jsonl"
+	if err := writeFile(path, jsonl); err != nil {
+		t.Fatal(err)
+	}
+	s, err := ParseFile(path, nil)
+	if err != nil {
+		t.Fatalf("ParseFile: %v", err)
+	}
+	return s
+}
+
+func TestSessionModels(t *testing.T) {
+	jsonl := `{"type":"user","sessionId":"s1","timestamp":"2026-07-15T10:00:00Z","cwd":"/proj","message":{"role":"user","content":"こんにちは"}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:00:05Z","message":{"role":"assistant","model":"claude-fable-5","content":[{"type":"text","text":"はい"}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:00:10Z","message":{"role":"assistant","model":"claude-fable-5","content":[{"type":"text","text":"続き"}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-07-15T10:01:00Z","message":{"role":"assistant","model":"claude-opus-4-8","content":[{"type":"text","text":"切替後"}]}}
+`
+	s := parseString(t, jsonl)
+	want := []string{"claude-fable-5", "claude-opus-4-8"}
+	if len(s.Models) != len(want) {
+		t.Fatalf("Models = %v, want %v", s.Models, want)
+	}
+	for i := range want {
+		if s.Models[i] != want[i] {
+			t.Errorf("Models[%d] = %q, want %q", i, s.Models[i], want[i])
+		}
+	}
+}
