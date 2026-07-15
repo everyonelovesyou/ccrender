@@ -176,6 +176,8 @@
   {{- range $i, $e := .Events}}
   {{- if eq $e.Kind "user_message"}}
   <a href="#e{{$i}}">{{$e.Timestamp.Format "15:04"}} {{firstLine $e.Text}}</a>
+  {{- else if and (eq $e.Kind "skill_invocation") $e.Skill $e.Skill.ByUser}}
+  <a href="#e{{$i}}">{{$e.Timestamp.Format "15:04"}} {{$e.Skill.Command}}</a>
   {{- end}}
   {{- end}}
   <div class="cap" style="padding-top:18px">フィルタ</div>
@@ -279,10 +281,20 @@
     if (!btn) return;
     var scope = btn.closest(".skill-line, .body, summary, .msg");
     var src = scope && scope.querySelector(".copy-src");
+    var old = btn.textContent;
     if (src && navigator.clipboard) {
-      navigator.clipboard.writeText(src.textContent.trim());
-      var old = btn.textContent;
-      btn.textContent = "✓";
+      navigator.clipboard.writeText(src.textContent.trim()).then(
+        function () {
+          btn.textContent = "✓";
+          setTimeout(function () { btn.textContent = old; }, 900);
+        },
+        function () {
+          btn.textContent = "✗";
+          setTimeout(function () { btn.textContent = old; }, 900);
+        }
+      );
+    } else {
+      btn.textContent = "✗";
       setTimeout(function () { btn.textContent = old; }, 900);
     }
     ev.preventDefault();
