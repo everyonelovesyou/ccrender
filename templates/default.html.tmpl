@@ -137,7 +137,7 @@
   .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .deny .mark { background: var(--deny); color: #fff; font-size: 11px; font-weight: 700;
                 padding: 1px 8px; border-radius: 5px; }
-  .deny code { font-size: 12.5px; color: var(--deny-text); }
+  .deny code { font-size: 12.5px; color: var(--deny-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
                      color: var(--deny-text); white-space: pre-wrap; }
 
@@ -220,7 +220,7 @@
   <details class="tool">
     <summary>
       <span class="tool-badge">🔧 {{$e.Tool.Name}}</span>
-      <code class="copy-src">{{firstLine $e.Tool.Summary}}</code>
+      <code class="copy-src">{{$e.Tool.Summary}}</code>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
@@ -237,7 +237,7 @@
   <div class="row">
     <span class="mark">🚫 拒否</span>
     <span class="tool-badge">{{$e.Tool.Name}}</span>
-    <code>{{firstLine $e.Tool.Summary}}</code>
+    <code>{{$e.Tool.Summary}}</code>
   </div>
   {{- if $e.Tool.DenyReason}}
   <blockquote>{{$e.Tool.DenyReason}}</blockquote>

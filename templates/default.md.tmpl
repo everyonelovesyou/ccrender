@@ -21,7 +21,15 @@
 {{.Text}}
 {{- end}}
 {{else if eq .Kind "tool_call"}}
+{{- if isMultiline .Tool.Summary}}
+🔧 **{{.Tool.Name}}**
+
+```
+{{.Tool.Summary}}
+```
+{{- else}}
 🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
+{{- end}}
 {{- if .Tool.HasResult}}
 
 ```
@@ -32,7 +40,15 @@
 (結果なし)
 {{end}}
 {{- else if eq .Kind "permission_deny"}}
+{{- if isMultiline .Tool.Summary}}
+🚫 **拒否** {{.Tool.Name}}
+
+```
+{{.Tool.Summary}}
+```
+{{- else}}
 🚫 **拒否** {{.Tool.Name}} — `{{firstLine .Tool.Summary}}`
+{{- end}}
 {{- if .Tool.DenyReason}}
 
 > {{.Tool.DenyReason}}

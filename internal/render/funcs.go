@@ -30,11 +30,17 @@ func Join(sep string, ss []string) string {
 	return strings.Join(ss, sep)
 }
 
+// IsMultiline は s が複数行かを返す (複数行 Summary の全文表示分岐用)。
+func IsMultiline(s string) bool {
+	return strings.ContainsRune(s, '\n')
+}
+
 // Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
 func Funcs() template.FuncMap {
 	return template.FuncMap{
 		"truncateLines": TruncateLines,
 		"firstLine":     FirstLine,
 		"join":          Join,
+		"isMultiline":   IsMultiline,
 	}
 }

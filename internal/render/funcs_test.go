@@ -32,3 +32,12 @@ func TestJoin(t *testing.T) {
 		t.Errorf("Join(nil) = %q, want empty", got)
 	}
 }
+
+func TestIsMultiline(t *testing.T) {
+	if IsMultiline("one line") {
+		t.Error("1行なのに true")
+	}
+	if !IsMultiline("line1\nline2") {
+		t.Error("複数行なのに false")
+	}
+}

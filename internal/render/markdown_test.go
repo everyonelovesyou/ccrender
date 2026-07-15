@@ -131,6 +131,31 @@ func TestMarkdownEmptyAssistantHeading(t *testing.T) {
 	}
 }
 
+// 複数行の Bash コマンドはフェンスで全文表示される
+func TestMarkdownMultilineCommand(t *testing.T) {
+	cmd := "git commit -m \"$(cat <<'EOF'\nfeat: 変更\nEOF\n)\""
+	s := &parse.Session{
+		ID: "s1", ProjectPath: "/proj",
+		Events: []parse.Event{
+			{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: "Bash", Summary: cmd, HasResult: true, Result: "ok"}},
+		},
+	}
+	out := renderMarkdown(t, s)
+	if !strings.Contains(out, "feat: 変更") {
+		t.Error("複数行コマンドの2行目以降が出力されていない")
+	}
+}
+
+// renderMarkdown はデフォルトテンプレートで s を markdown に整形して返す (テスト用)。
+func renderMarkdown(t *testing.T, s *parse.Session) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
 func compareGolden(t *testing.T, path string, got []byte) {
 	t.Helper()
 	if *update {
