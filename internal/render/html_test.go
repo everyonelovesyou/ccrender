@@ -172,13 +172,31 @@ func TestHTMLPermissionDenyMultilineSummary(t *testing.T) {
 		t.Fatal("deny ブロックが見つからない")
 	}
 	if !strings.Contains(block, `class="copy-src"`) {
-		t.Error("permission_deny の Summary に copy-src クラスがない")
+		t.Error("Summary に copy-src がない")
 	}
 	if !strings.Contains(block, `<button class="copy"`) {
-		t.Error("permission_deny にコピーボタンがない")
+		t.Error("コピーボタンがない")
 	}
 	if !strings.Contains(block, "--no-preserve-root") {
-		t.Error("複数行 Summary の2行目が出力されていない")
+		t.Error("複数行 Summary が全文出力されていない")
+	}
+
+	scriptStart := strings.Index(out, "<script>")
+	if scriptStart < 0 {
+		t.Fatal("script が見つからない")
+	}
+	script := out[scriptStart:]
+	scopeStart := strings.Index(script, `btn.closest(`)
+	if scopeStart < 0 {
+		t.Fatal("コピー対象の探索処理が見つからない")
+	}
+	scopeEnd := strings.Index(script[scopeStart:], ");")
+	if scopeEnd < 0 {
+		t.Fatal("コピー対象の探索式を取得できない")
+	}
+	scopeExpression := script[scopeStart : scopeStart+scopeEnd]
+	if !strings.Contains(scopeExpression, ".deny") {
+		t.Error("コピー対象の探索範囲に .deny が含まれていない")
 	}
 }
 
