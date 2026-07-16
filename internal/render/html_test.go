@@ -152,6 +152,36 @@ func TestHTMLEmptyAssistantHeading(t *testing.T) {
 	}
 }
 
+func TestHTMLPermissionDenyMultilineSummary(t *testing.T) {
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindPermissionDeny, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name:       "Bash",
+			Summary:    "rm -rf /\n--no-preserve-root",
+			IsError:    true,
+			HasResult:  true,
+			DenyReason: "危険なコマンド",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	block := extractBlock(out, `<div class="deny`)
+	if block == "" {
+		t.Fatal("deny ブロックが見つからない")
+	}
+	if !strings.Contains(block, `class="copy-src"`) {
+		t.Error("permission_deny の Summary に copy-src クラスがない")
+	}
+	if !strings.Contains(block, `<button class="copy"`) {
+		t.Error("permission_deny にコピーボタンがない")
+	}
+	if !strings.Contains(block, "--no-preserve-root") {
+		t.Error("複数行 Summary の2行目が出力されていない")
+	}
+}
+
 func TestHTMLSkillPathShownVerbatim(t *testing.T) {
 	// パスは URL エスケープせず、そのままテキストで表示する
 	s := &parse.Session{ID: "x", Events: []parse.Event{
