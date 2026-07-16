@@ -2,6 +2,7 @@ package parse
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 )
 
@@ -51,10 +52,11 @@ func relToRoot(root, p string) string {
 	if root == "" || p == "" {
 		return p
 	}
-	if rest, ok := strings.CutPrefix(p, root+"/"); ok && rest != "" {
-		return rest
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(p))
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, "../") {
+		return p
 	}
-	return p
+	return rel
 }
 
 // formatInput は input JSON をインデント付きで整形する。壊れていれば原文のまま返す。
