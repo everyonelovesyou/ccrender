@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -48,8 +49,14 @@ func ParseFile(path string, warn io.Writer) (*Session, error) {
 			}
 			s.EndedAt = ts
 		}
-		s.Events = append(s.Events, buildEvents(rec, ts, results, subs, idx, warn)...)
+		if rec.Type == "assistant" && rec.Message != nil && rec.Message.Model != "" {
+			if !slices.Contains(s.Models, rec.Message.Model) {
+				s.Models = append(s.Models, rec.Message.Model)
+			}
+		}
+		s.Events = append(s.Events, buildEvents(rec, ts, s.ProjectPath, results, subs, idx, warn)...)
 	}
+	s.Events = insertAssistantHeadings(s.Events)
 	s.Stats = computeStats(s.Events, skipped)
 	return s, nil
 }
@@ -106,7 +113,7 @@ func collectToolResults(records []rawRecord) map[string]contentBlock {
 }
 
 // buildEvents は1レコードをイベント列へ変換する。
-func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) []Event {
+func buildEvents(rec rawRecord, ts time.Time, projectRoot string, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) []Event {
 	var events []Event
 	switch rec.Type {
 	case "user":
@@ -133,7 +140,7 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 					events = append(events, Event{Kind: KindAssistantMessage, Timestamp: ts, Text: text})
 				}
 			case "tool_use":
-				events = append(events, toolEvent(b, ts, results, subs, idx, warn))
+				events = append(events, toolEvent(b, ts, projectRoot, results, subs, idx, warn))
 			}
 		}
 	case "system":
@@ -146,10 +153,10 @@ func buildEvents(rec rawRecord, ts time.Time, results map[string]contentBlock, s
 }
 
 // toolEvent は tool_use ブロックを ToolCall (または Agent の場合 SubagentCall) イベントへ変換する。
-func toolEvent(b contentBlock, ts time.Time, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) Event {
+func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[string]contentBlock, subs map[string]Subagent, idx skillIndex, warn io.Writer) Event {
 	tc := &ToolCall{
 		Name:    b.Name,
-		Summary: toolSummary(b.Name, b.Input),
+		Summary: toolSummary(b.Name, b.Input, projectRoot),
 		Input:   formatInput(b.Input),
 	}
 	kind := KindToolCall
@@ -204,6 +211,36 @@ func subagentEvent(b contentBlock, ts time.Time, results map[string]contentBlock
 	return Event{Kind: KindSubagentCall, Timestamp: ts, Subagent: &sub}
 }
 
+// insertAssistantHeadings は、直前に assistant の発話が無いまま assistant 側イベント
+// (ツール呼び出し等) が始まる箇所へ、空テキストの assistant_message (見出しのみ) を挿入する。
+// テキストなしでツールだけ呼んだターンの帰属が user に見える問題への対処。
+func insertAssistantHeadings(events []Event) []Event {
+	out := make([]Event, 0, len(events))
+	inAssistant := false
+	for _, e := range events {
+		switch e.Kind {
+		case KindAssistantMessage:
+			inAssistant = true
+		case KindUserMessage, KindSystemNote:
+			inAssistant = false
+		case KindSkillInvocation:
+			if e.Skill != nil && e.Skill.ByUser {
+				inAssistant = false
+			} else if !inAssistant {
+				out = append(out, Event{Kind: KindAssistantMessage, Timestamp: e.Timestamp})
+				inAssistant = true
+			}
+		case KindToolCall, KindPermissionDeny, KindSubagentCall:
+			if !inAssistant {
+				out = append(out, Event{Kind: KindAssistantMessage, Timestamp: e.Timestamp})
+				inAssistant = true
+			}
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 func computeStats(events []Event, skipped int) Stats {
 	st := Stats{SkippedLines: skipped}
 	for _, e := range events {
@@ -211,7 +248,9 @@ func computeStats(events []Event, skipped int) Stats {
 		case KindUserMessage:
 			st.UserMessages++
 		case KindAssistantMessage:
-			st.AssistantMessages++
+			if e.Text != "" {
+				st.AssistantMessages++
+			}
 		case KindToolCall:
 			st.ToolCalls++
 		case KindPermissionDeny:

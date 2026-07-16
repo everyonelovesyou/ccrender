@@ -23,3 +23,21 @@ func TestFirstLine(t *testing.T) {
 		t.Errorf("FirstLine = %q", got)
 	}
 }
+
+func TestJoin(t *testing.T) {
+	if got := Join(", ", []string{"a", "b"}); got != "a, b" {
+		t.Errorf("Join = %q, want %q", got, "a, b")
+	}
+	if got := Join(", ", nil); got != "" {
+		t.Errorf("Join(nil) = %q, want empty", got)
+	}
+}
+
+func TestIsMultiline(t *testing.T) {
+	if IsMultiline("one line") {
+		t.Error("1行なのに true")
+	}
+	if !IsMultiline("line1\nline2") {
+		t.Error("複数行なのに false")
+	}
+}

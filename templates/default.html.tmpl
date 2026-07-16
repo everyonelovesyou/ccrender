@@ -55,6 +55,7 @@
   header .stats .d { background: var(--deny-bg); color: var(--deny); }
   header .stats .s { background: var(--sub-bg); color: var(--sub); }
   header .stats .k { background: var(--skill-bg); color: var(--skill); }
+  header .stats .m { font-family: var(--mono); font-size: 12px; }
 
   /* ── layout ── */
   .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
@@ -136,7 +137,9 @@
   .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .deny .mark { background: var(--deny); color: #fff; font-size: 11px; font-weight: 700;
                 padding: 1px 8px; border-radius: 5px; }
-  .deny code { font-size: 12.5px; color: var(--deny-text); }
+  .deny code { font-size: 12.5px; color: var(--deny-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; }
+  .deny .copy { cursor: pointer; background: none; border: 1px solid var(--deny-border);
+                border-radius: 4px; font-size: 12px; padding: 0 5px; color: var(--deny-text); }
   .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
                      color: var(--deny-text); white-space: pre-wrap; }
 
@@ -168,6 +171,9 @@
     <span class="k">スキル {{.Stats.SkillInvocations}}</span>
     <span class="d">🚫 {{.Stats.PermissionDenies}}</span>
     <span class="s">🤝 {{.Stats.SubagentCalls}}</span>
+    {{- if .Models}}
+    <span class="m">{{join ", " .Models}}</span>
+    {{- end}}
   </div>
 </header>
 <div class="layout">
@@ -203,8 +209,12 @@
   <div class="avatar">🤖</div>
   <div class="body">
     <div class="meta"><span class="who">Claude</span><span class="ts">{{$e.Timestamp.Format "15:04"}}</span>
-      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+      {{- if $e.Text}}
+      <button class="copy" title="発話をコピー">⧉ コピー</button>
+      {{- end}}</div>
+    {{- if $e.Text}}
     <div class="text copy-src">{{$e.Text}}</div>
+    {{- end}}
   </div>
 </div>
 {{- else if eq $e.Kind "tool_call"}}
@@ -212,7 +222,7 @@
   <details class="tool">
     <summary>
       <span class="tool-badge">🔧 {{$e.Tool.Name}}</span>
-      <code class="copy-src">{{firstLine $e.Tool.Summary}}</code>
+      <code class="copy-src">{{$e.Tool.Summary}}</code>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
@@ -229,7 +239,8 @@
   <div class="row">
     <span class="mark">🚫 拒否</span>
     <span class="tool-badge">{{$e.Tool.Name}}</span>
-    <code>{{firstLine $e.Tool.Summary}}</code>
+    <code class="copy-src">{{$e.Tool.Summary}}</code>
+    <button class="copy" title="コマンド/パスをコピー">⧉</button>
   </div>
   {{- if $e.Tool.DenyReason}}
   <blockquote>{{$e.Tool.DenyReason}}</blockquote>
@@ -279,7 +290,7 @@
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("button.copy");
     if (!btn) return;
-    var scope = btn.closest(".skill-line, .body, summary, .msg");
+    var scope = btn.closest(".skill-line, .body, summary, .msg, .deny");
     var src = scope && scope.querySelector(".copy-src");
     var old = btn.textContent;
     if (src && navigator.clipboard) {

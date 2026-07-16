@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +21,8 @@ func fixtureSession() *parse.Session {
 		ID:          "sess-0001",
 		ProjectPath: "/Users/example/proj",
 		StartedAt:   at(0),
-		EndedAt:     at(8),
+		EndedAt:     at(11),
+		Models:      []string{"claude-fable-5", "claude-opus-4-8"},
 		Events: []parse.Event{
 			{Kind: parse.KindUserMessage, Timestamp: at(0), Text: "こんにちは"},
 			{Kind: parse.KindAssistantMessage, Timestamp: at(1), Text: "確認します"},
@@ -49,9 +51,25 @@ func fixtureSession() *parse.Session {
 				Name: "superpowers:brainstorming",
 				Path: "/Users/example/plug/skills/brainstorming",
 			}},
+			// テキストなしで Edit だけ呼ぶターン: 空テキストの見出しが挿入され、
+			// ルート配下のパスは相対化されて表示される。
+			{Kind: parse.KindAssistantMessage, Timestamp: at(9)},
+			{Kind: parse.KindToolCall, Timestamp: at(9), Tool: &parse.ToolCall{
+				Name: "Edit", Summary: "internal/render/render.go",
+				Input: "{\n  \"file_path\": \"internal/render/render.go\"\n}",
+				HasResult: true, Result: "ok",
+			}},
+			// heredoc を含む複数行 Bash: フェンス全文 (md) / 全文 copy-src (html) で表示される。
+			{Kind: parse.KindAssistantMessage, Timestamp: at(10), Text: "コミットします"},
+			{Kind: parse.KindToolCall, Timestamp: at(11), Tool: &parse.ToolCall{
+				Name:      "Bash",
+				Summary:   "git commit -m \"$(cat <<'EOF'\nfeat: 変更\nEOF\n)\"",
+				Input:     "{\n  \"command\": \"git commit -m \\\"$(cat <<'EOF'\\nfeat: 変更\\nEOF\\n)\\\"\"\n}",
+				HasResult: true, Result: "[main abc1234] feat: 変更",
+			}},
 		},
 		Stats: parse.Stats{
-			UserMessages: 1, AssistantMessages: 1, ToolCalls: 2,
+			UserMessages: 1, AssistantMessages: 2, ToolCalls: 4,
 			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1,
 			SkillInvocations: 2, SkippedLines: 1,
 		},
@@ -102,6 +120,57 @@ func TestMarkdownBadOverrideTemplate(t *testing.T) {
 	if err := Markdown(&buf, fixtureSession(), dir+"/no-such.tmpl"); err == nil {
 		t.Fatal("存在しないテンプレートが通った")
 	}
+}
+
+func TestMarkdownEmptyAssistantHeading(t *testing.T) {
+	// テキストなしでツールだけ呼んだターンの assistant_message は見出し行のみで、余分な空行が続かない
+	s := &parse.Session{
+		ID: "s1", ProjectPath: "/proj",
+		Events: []parse.Event{
+			{Kind: parse.KindAssistantMessage, Timestamp: time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)},
+			{Kind: parse.KindToolCall, Timestamp: time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC), Tool: &parse.ToolCall{Name: "Edit", Summary: "a.go"}},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "## 🤖 Assistant (10:00)") {
+		t.Error("見出しが描画されていない")
+	}
+	if strings.Contains(out, "## 🤖 Assistant (10:00)\n\n\n") {
+		t.Error("空見出しの直後に余分な (2つ以上の) 空行が続いている")
+	}
+	// 見出し直後は他イベント間と同じ1行の空行のみを挟んで次のツール行に接続する
+	if !strings.Contains(out, "## 🤖 Assistant (10:00)\n\n🔧 **Edit**") {
+		t.Errorf("見出し直後の空行が乱れている:\n%s", out)
+	}
+}
+
+// 複数行の Bash コマンドはフェンスで全文表示される
+func TestMarkdownMultilineCommand(t *testing.T) {
+	cmd := "git commit -m \"$(cat <<'EOF'\nfeat: 変更\nEOF\n)\""
+	s := &parse.Session{
+		ID: "s1", ProjectPath: "/proj",
+		Events: []parse.Event{
+			{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: "Bash", Summary: cmd, HasResult: true, Result: "ok"}},
+		},
+	}
+	out := renderMarkdown(t, s)
+	if !strings.Contains(out, "feat: 変更") {
+		t.Error("複数行コマンドの2行目以降が出力されていない")
+	}
+}
+
+// renderMarkdown はデフォルトテンプレートで s を markdown に整形して返す (テスト用)。
+func renderMarkdown(t *testing.T, s *parse.Session) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }
 
 func compareGolden(t *testing.T, path string, got []byte) {

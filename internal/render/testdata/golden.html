@@ -55,6 +55,7 @@
   header .stats .d { background: var(--deny-bg); color: var(--deny); }
   header .stats .s { background: var(--sub-bg); color: var(--sub); }
   header .stats .k { background: var(--skill-bg); color: var(--skill); }
+  header .stats .m { font-family: var(--mono); font-size: 12px; }
 
    
   .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
@@ -136,7 +137,9 @@
   .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .deny .mark { background: var(--deny); color: #fff; font-size: 11px; font-weight: 700;
                 padding: 1px 8px; border-radius: 5px; }
-  .deny code { font-size: 12.5px; color: var(--deny-text); }
+  .deny code { font-size: 12.5px; color: var(--deny-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; }
+  .deny .copy { cursor: pointer; background: none; border: 1px solid var(--deny-border);
+                border-radius: 4px; font-size: 12px; padding: 0 5px; color: var(--deny-text); }
   .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
                      color: var(--deny-text); white-space: pre-wrap; }
 
@@ -163,11 +166,12 @@
   <h1>sess-0001 <small>· /Users/example/proj · 2026-07-12 00:00 〜 00:00</small></h1>
   <div class="stats">
     <span class="u">👤 1</span>
-    <span>🤖 1</span>
-    <span>🔧 2</span>
+    <span>🤖 2</span>
+    <span>🔧 4</span>
     <span class="k">スキル 2</span>
     <span class="d">🚫 1</span>
     <span class="s">🤝 1</span>
+    <span class="m">claude-fable-5, claude-opus-4-8</span>
   </div>
 </header>
 <div class="layout">
@@ -241,7 +245,8 @@
   <div class="row">
     <span class="mark">🚫 拒否</span>
     <span class="tool-badge">Edit</span>
-    <code>/tmp/x.txt</code>
+    <code class="copy-src">/tmp/x.txt</code>
+    <button class="copy" title="コマンド/パスをコピー">⧉</button>
   </div>
   <blockquote>こっちは触らないで</blockquote>
 </div>
@@ -285,6 +290,51 @@
   <span class="skill">🔧 Skill(<b>superpowers:brainstorming</b>)</span>
   <span class="path copy-src">/Users/example/plug/skills/brainstorming</span>
   <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+</div>
+<div class="msg ev-talk" id="e9">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span></div>
+  </div>
+</div>
+<div class="tools ev-tool" id="e10" data-tool="Edit">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Edit</span>
+      <code class="copy-src">internal/render/render.go</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{
+  &#34;file_path&#34;: &#34;internal/render/render.go&#34;
+}</pre>
+    <pre class="result">ok</pre>
+  </details>
+</div>
+<div class="msg ev-talk" id="e11">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span>
+      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+    <div class="text copy-src">コミットします</div>
+  </div>
+</div>
+<div class="tools ev-tool" id="e12" data-tool="Bash">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Bash</span>
+      <code class="copy-src">git commit -m &#34;$(cat &lt;&lt;&#39;EOF&#39;
+feat: 変更
+EOF
+)&#34;</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{
+  &#34;command&#34;: &#34;git commit -m \&#34;$(cat &lt;&lt;&#39;EOF&#39;\nfeat: 変更\nEOF\n)\&#34;&#34;
+}</pre>
+    <pre class="result">[main abc1234] feat: 変更</pre>
+  </details>
 </div>
 </main>
 </div>
