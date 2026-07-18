@@ -2,11 +2,71 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestParseSubcommand(t *testing.T) {
+	cases := []struct {
+		name       string
+		sub        string
+		args       []string
+		wantFormat string
+		wantStdout bool
+		wantErr    string
+	}{
+		{"md は format=md", "md", []string{"abc"}, "md", false, ""},
+		{"html は format=html", "html", []string{"abc"}, "html", false, ""},
+		{"both は format=both", "both", []string{"abc"}, "both", false, ""},
+		{"stdout は format=md + stdout", "stdout", []string{"abc"}, "md", true, ""},
+		{"md の固有フラグ", "md", []string{"-o", "out", "--template-md", "t.tmpl", "abc"}, "md", false, ""},
+		{"html の固有フラグ", "html", []string{"--template-html", "t.tmpl", "abc"}, "html", false, ""},
+		{"共通フラグは全サブコマンドで使える", "stdout", []string{"--translate", "--latest", "--project", "x"}, "md", true, ""},
+		{"属さないフラグ: stdout に -o", "stdout", []string{"-o", "out", "abc"}, "", false, "-o"},
+		{"属さないフラグ: md に --template-html", "md", []string{"--template-html", "t", "abc"}, "", false, "template-html"},
+		{"属さないフラグ: html に --template-md", "html", []string{"--template-md", "t", "abc"}, "", false, "template-md"},
+		{"未知のサブコマンド", "foo", nil, "", false, "未知のサブコマンド"},
+	}
+	for _, tc := range cases {
+		c, err := parseSubcommand(tc.sub, tc.args)
+		if tc.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("%s: err = %v, want contains %q", tc.name, err, tc.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: 予期しないエラー %v", tc.name, err)
+			continue
+		}
+		if c.format != tc.wantFormat || c.stdout != tc.wantStdout {
+			t.Errorf("%s: format=%q stdout=%v, want %q %v", tc.name, c.format, c.stdout, tc.wantFormat, tc.wantStdout)
+		}
+	}
+}
+
+func TestParseSubcommandPositionalArgs(t *testing.T) {
+	c, err := parseSubcommand("md", []string{"-o", "out", "abc", "def"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.arg != "abc" || c.narg != 2 {
+		t.Errorf("arg=%q narg=%d, want %q 2", c.arg, c.narg, "abc")
+	}
+	if c.outDir != "out" {
+		t.Errorf("outDir=%q, want %q", c.outDir, "out")
+	}
+}
+
+func TestParseSubcommandHelp(t *testing.T) {
+	if _, err := parseSubcommand("md", []string{"-h"}); !errors.Is(err, flag.ErrHelp) {
+		t.Errorf("err = %v, want flag.ErrHelp", err)
+	}
+}
 
 func TestValidateFlags(t *testing.T) {
 	cases := []struct {
@@ -14,18 +74,14 @@ func TestValidateFlags(t *testing.T) {
 		cfg     config
 		wantErr string
 	}{
-		{"stdout は md のみ", config{stdout: true, format: "html"}, "--stdout"},
-		{"stdout + both もエラー", config{stdout: true, format: "both"}, "--stdout"},
-		{"stdout + md は OK", config{stdout: true, format: "md"}, ""},
-		{"stdout + format 省略は md 扱い", config{stdout: true, format: ""}, ""},
-		{"-o と --stdout の併用", config{stdout: true, format: "md", outDir: "out"}, "-o"},
-		{"--latest と位置引数の併用", config{latest: true, arg: "abc"}, "--latest"},
-		{"--project 単独", config{project: "x", arg: "abc"}, "--project"},
-		{"不正な format", config{format: "pdf", arg: "abc"}, "format"},
-		{"入力なし", config{}, "入力"},
 		{"位置引数が2つ以上", config{arg: "abc", narg: 2}, "位置引数"},
-		{"位置引数1つは OK", config{arg: "abc", narg: 1}, ""},
-		{"通常ケース", config{arg: "abc", format: "both"}, ""},
+		{"--latest と位置引数の併用", config{latest: true, arg: "abc", narg: 1}, "--latest"},
+		{"--project 単独", config{project: "x", arg: "abc", narg: 1}, "--project"},
+		{"入力なし", config{}, "入力"},
+		{"stdout でも入力は必須", config{stdout: true, format: "md"}, "入力"},
+		{"位置引数1つは OK", config{arg: "abc", narg: 1, format: "both"}, ""},
+		{"--latest 単独は OK", config{latest: true, format: "md"}, ""},
+		{"--latest --project は OK", config{latest: true, project: "x", format: "html"}, ""},
 	}
 	for _, c := range cases {
 		err := c.cfg.validate()
@@ -38,6 +94,60 @@ func TestValidateFlags(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), c.wantErr) {
 			t.Errorf("%s: err = %v, want contains %q", c.name, err, c.wantErr)
 		}
+	}
+}
+
+func TestRealMainDispatch(t *testing.T) {
+	cases := []struct {
+		name       string
+		args       []string
+		wantExit   int
+		wantStdout string // 空なら stdout は検査しない
+		wantStderr string // 空なら stderr は検査しない
+	}{
+		{"引数なしは使い方を stderr へ", nil, 1, "", "使い方"},
+		{"-h は使い方を stdout へ", []string{"-h"}, 0, "使い方", ""},
+		{"help は使い方を stdout へ", []string{"help"}, 0, "使い方", ""},
+		{"使い方に用例を含む", []string{"help"}, 0, "ccrender both --latest", ""},
+		{"help md はフラグ一覧を stdout へ", []string{"help", "md"}, 0, "-template-md", ""},
+		{"help stdout もフラグ一覧を stdout へ", []string{"help", "stdout"}, 0, "-template-md", ""},
+		{"md -h はフラグ一覧を stdout へ", []string{"md", "-h"}, 0, "-template-md", ""},
+		{"未知のサブコマンド", []string{"foo"}, 1, "", "未知のサブコマンドです"},
+		{"未知のサブコマンドにも使い方", []string{"foo"}, 1, "", "使い方"},
+		{"help の後の未知サブコマンド", []string{"help", "foo"}, 1, "", "未知のサブコマンドです"},
+		{"旧形式 (ID 直接) は未知サブコマンド扱い", []string{"abc123"}, 1, "", "未知のサブコマンドです"},
+		{"属さないフラグは stderr + exit 1", []string{"stdout", "-o", "x", "abc"}, 1, "", "-o"},
+		{"残る検査: --latest と位置引数", []string{"md", "--latest", "abc"}, 1, "", "--latest"},
+		{"残る検査: --project 単独", []string{"md", "--project", "x", "abc"}, 1, "", "--project"},
+		{"残る検査: 入力なし", []string{"both"}, 1, "", "入力"},
+		{"残る検査: 位置引数2つ", []string{"md", "abc", "def"}, 1, "", "位置引数"},
+	}
+	for _, tc := range cases {
+		var stdout, stderr bytes.Buffer
+		got := realMain(tc.args, &stdout, &stderr)
+		if got != tc.wantExit {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", tc.name, got, tc.wantExit, stderr.String())
+		}
+		if tc.wantStdout != "" && !strings.Contains(stdout.String(), tc.wantStdout) {
+			t.Errorf("%s: stdout に %q がない: %s", tc.name, tc.wantStdout, stdout.String())
+		}
+		if tc.wantStderr != "" && !strings.Contains(stderr.String(), tc.wantStderr) {
+			t.Errorf("%s: stderr に %q がない: %s", tc.name, tc.wantStderr, stderr.String())
+		}
+		if tc.wantExit == 0 && stderr.Len() > 0 {
+			t.Errorf("%s: 正常系なのに stderr に出力がある: %s", tc.name, stderr.String())
+		}
+	}
+}
+
+func TestRealMainStdoutEndToEnd(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	got := realMain([]string{"stdout", "../../internal/parse/testdata/session_small.jsonl"}, &stdout, &stderr)
+	if got != 0 {
+		t.Fatalf("exit = %d, want 0 (stderr: %s)", got, stderr.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("# セッション sess-0001")) {
+		t.Error("stdout サブコマンドで md が出力されていない")
 	}
 }
 
