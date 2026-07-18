@@ -12,7 +12,8 @@ var noiseRE = regexp.MustCompile(`(?s)` +
 	`|<command-message>.*?</command-message>` +
 	`|<command-args>.*?</command-args>` +
 	`|<local-command-stdout>.*?</local-command-stdout>` +
-	`|<local-command-caveat>.*?</local-command-caveat>`)
+	`|<local-command-caveat>.*?</local-command-caveat>` +
+	`|<task-notification>.*?</task-notification>`)
 
 func stripNoise(s string) string {
 	return strings.TrimSpace(noiseRE.ReplaceAllString(s, ""))

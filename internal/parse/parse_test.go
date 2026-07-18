@@ -107,6 +107,18 @@ func TestNoiseStrip(t *testing.T) {
 	}
 }
 
+// task-notification はユーザー発話ではないため丸ごと除去する
+func TestTaskNotificationDropped(t *testing.T) {
+	if got := stripNoise("<task-notification>\n<task-id>x</task-id>\n<summary>done</summary>\n</task-notification>"); got != "" {
+		t.Errorf("task-notification が残った: %q", got)
+	}
+	jsonl := `{"type":"user","sessionId":"s1","timestamp":"2026-07-18T00:00:00Z","message":{"role":"user","content":"<task-notification>\n<task-id>x</task-id>\n</task-notification>"}}` + "\n"
+	s := parseString(t, jsonl)
+	if got := eventsOfKind(s, KindUserMessage); len(got) != 0 {
+		t.Errorf("task-notification がユーザー発言として描画される: %+v", got)
+	}
+}
+
 // timestamp は UTC で記録されるため、表示用にローカル時刻へ変換する
 func TestParseTimeLocal(t *testing.T) {
 	orig := time.Local
