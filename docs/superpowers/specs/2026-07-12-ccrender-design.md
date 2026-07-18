@@ -1,8 +1,11 @@
-# cctx 設計書 — Claude Code トランスクリプト整形ツール
+# ccrender 設計書 — Claude Code トランスクリプト整形ツール
 
 - 日付: 2026-07-12
 - ステータス: 承認済み (ブレインストーミングで節ごとに承認)
 - 追記: 2026-07-12 設計レビュー + トランスクリプト実地調査の反映 (サブエージェント紐付け、データモデル拡張、フラグ規則ほか)
+- 追記: 2026-07-14 スキル発動エントリの特別描画を統合 (EventKind 7種目 `skill_invocation` を追加。PR #2)
+- 追記: 2026-07-16 描画改善4件を統合 (空アシスタントターンの見出し、複数行 Summary、モデル名統計、パス相対化。PR #3)
+- 追記: 2026-07-18 ツール名を cctx から ccrender にリネーム
 
 ## 目的
 
@@ -24,13 +27,13 @@ Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.
 ## CLI
 
 ```
-cctx [flags] <入力>
+ccrender [flags] <入力>
 
 入力の指定 (3形態):
-  cctx path/to/session.jsonl        # パス直接
-  cctx bbfac067                     # セッションID (前方一致で ~/.claude/projects/ を探索)
-  cctx --latest                     # 最新セッション
-  cctx --latest --project Workspace # プロジェクト名で絞った最新
+  ccrender path/to/session.jsonl        # パス直接
+  ccrender bbfac067                     # セッションID (前方一致で ~/.claude/projects/ を探索)
+  ccrender --latest                     # 最新セッション
+  ccrender --latest --project Workspace # プロジェクト名で絞った最新
 
 主なフラグ:
   --format md|html|both   出力形式 (デフォルト: both)
@@ -68,16 +71,25 @@ type Session struct {
     ProjectPath string    // レコード内の cwd フィールドから取得 (ディレクトリ名からの復元は不可逆のため不可)
     StartedAt   time.Time // 最初のレコードの timestamp
     EndedAt     time.Time // 最後のレコードの timestamp
+    Models      []string  // assistant レコードの message.model を登場順・重複なしで収集
     Events      []Event   // 時系列順
     Stats       Stats     // イベント種別ごとの件数 (ヘッダー表示用)
 }
 
 type Event struct {
-    Kind      EventKind // 下記6種
+    Kind      EventKind // 下記7種
     Timestamp time.Time
     Text      string    // 発話本文 (User/Assistant)
     Tool      *ToolCall // Kind が ToolCall/PermissionDeny のとき
     Subagent  *Subagent // Kind が SubagentCall のとき
+    Skill     *SkillInvocation // Kind が SkillInvocation のとき
+}
+
+type SkillInvocation struct {
+    Name    string // スキル名。エージェント発動は input.skill、ユーザー呼び出しは <command-name> の先頭 "/" を除いた形
+    Path    string // "Base directory for this skill:" の絶対パス
+    ByUser  bool   // true ならユーザー呼び出し
+    Command string // ByUser のとき「/name 引数」の再現文字列 (引数込み)。エージェント発動では空
 }
 
 type ToolCall struct {
@@ -102,11 +114,13 @@ type Subagent struct {
   `ToolCall.Result` と `Subagent.Answer` という別フィールドに分かれるため矛盾しない。
   テンプレートは `Result` にのみ `truncateLines` を適用する
 
-### EventKind (6種)
+### EventKind (7種)
 
 1. `UserMessage` — ユーザーの発話
     - `<system-reminder>` ブロック、`<command-name>` などのスキル展開ノイズは除去
-2. `AssistantMessage` — アシスタントの発話テキスト (thinking は含めない)
+2. `AssistantMessage` — アシスタントの発話テキスト (thinking は含めない)。
+    テキストが空でも tool_use を伴うターンには空テキストのイベントを発行する
+    (見出しの帰属を守るため。「テキストも tool_use 由来の見出しもないターン」だけが新規に見出しを持ち、重複はしない)
 3. `ToolCall` — tool_use と対応する tool_result を `tool_use_id` で突き合わせて1イベントに統合。
     対応する tool_result が無い tool_use (セッション中断等) は `HasResult=false` の ToolCall として出力する
 4. `PermissionDeny` — tool_result が `is_error=true` かつ拒否文言の**前方一致**で検出
@@ -114,6 +128,7 @@ type Subagent struct {
     添付メッセージは `DenyReason` に保持
 5. `SystemNote` — compact 境界やセッション再開などの節目情報 (最小限)
 6. `SubagentCall` — Agent ツールの呼び出し。通常の ToolCall ではなくこちらに分類する (下記)
+7. `SkillInvocation` — スキル発動。展開エントリを発動元 (エージェント / ユーザー) に応じて専用チップとして描画する (下記)
 
 ### 権限拒否の検出仕様 (ccmetrics 2026-07-10 実データ調査より転記)
 
@@ -157,6 +172,54 @@ type Subagent struct {
   (実装フェーズの依頼プロンプトは日本語の計画ステップと英語の定型文が混在するため、文字種ヒューリスティックでは破綻する)。
   詳細はレンダリング仕様の「翻訳」を参照
 
+### スキル発動 (SkillInvocation)
+
+スキル発動後、トランスクリプトにはスキル本文が user エントリとして記録される
+(本文は `Base directory for this skill: <絶対パス>` で始まる)。
+これを User 発言として描画せず、発動元に応じた専用チップとして描画する。
+展開本文 (スキルの手順書) はどちらの形式でも丸ごと非表示 (折りたたみにも残さない)。
+
+#### 発動元の判別 (2026-07-12 実地調査)
+
+スキル展開エントリはどちらも `type: "user"` かつ `isMeta: true` だが、フィールド構成が異なる。
+
+| 発動元 | 手がかり |
+|---|---|
+| ユーザー呼び出し (スラッシュコマンド) | `sourceToolUseID` を持たない。`parentUuid` が `<command-name>` / `<command-args>` を含む通常 user エントリの `uuid` を直接指す |
+| エージェント発動 (Skill ツール) | `sourceToolUseID` を持ち、assistant の `tool_use (name: "Skill")` を指す。スキル名は `input.skill` |
+
+#### 検出ロジック
+
+- 展開エントリの判定: `type: "user"` かつ `isMeta: true` かつ最初の text ブロックが
+  `Base directory for this skill: ` で始まること。パスはその行の残りから取得し、行末の `\r` と前後の空白を除去する。
+  合致した展開エントリは `user_message` として出力しない。それ以外の isMeta エントリの扱いは変えない
+- エージェント発動: 事前パスで展開エントリを `sourceToolUseID` で索引化し、
+  `Skill` の tool_use をイベント化する際に対応する展開があれば `tool_call` の代わりに `skill_invocation` を出す
+- ユーザー呼び出し: 事前パスで `<command-name>` を含む通常 user エントリを `uuid` で索引化し、
+  展開エントリの `parentUuid` で引いて `skill_invocation` (ByUser=true) を出す。
+  「直近のコマンドを覚えておく」近接方式は採らない (欠損・変則トランスクリプトで誤った対応付けが起きるため)。
+  `Command` は「/name 引数」を再現し (`<command-args>` が空白のみなら引数なし)、イベント時刻は展開エントリの `timestamp` を採用する
+
+#### 縮退
+
+- 対応する展開が無い Skill tool_use (権限拒否された場合など) は従来どおり `tool_call` / `permission_deny` のまま。
+  permission_deny 判定の優先順は維持する
+- `input.skill` が空の場合、Name はパスの basename で代替する。空でなければ常に `input.skill` を優先する
+- 展開エントリが `sourceToolUseID` を持つのに対応する Skill tool_use が本流に無い場合、その展開エントリは描画しない
+- ユーザー呼び出しで `parentUuid` が空、またはコマンドエントリの索引に見つからない場合、
+  パスの basename から `Name: basename`、`Command: "/basename"` を組み立て、警告は出さず描画を続行する
+
+#### 描画と統計
+
+- チップの形式: `🔧 Skill(skill-name) <絶対パス>`。パスは html ではテキスト表示 + コピーボタン
+  (スキルパスはディレクトリを指すため `file://` リンクにしない)、md ではインラインコード表記
+- エージェント発動: チップを発言UIの外 (tool_call と同じ並びの位置) に描画する
+- ユーザー呼び出し: ユーザー発言UIに「/skill-name 引数」のコマンド再現とチップを埋め込む。
+  html ではタイムライン (nav.toc) にもコマンドをラベルとして列挙する (エージェント発動は列挙しない)
+- `Stats.SkillInvocations` を数え、両テンプレートのイベント集計行に「スキル N」を出す。
+  `skill_invocation` になった Skill tool_use は `ToolCalls` に、ユーザー呼び出し分は `UserMessages` に数えない (二重計上しない)
+- `/clear` などスキル展開を伴わないコマンドエントリは従来どおり非表示
+
 ## レンダリング仕様
 
 1. ツール結果の扱い
@@ -168,8 +231,16 @@ type Subagent struct {
       (HTML では `<details>` 折りたたみ可)
 2. ツール呼び出しの表示
     - `Summary` を常時表示。`Input` の全パラメータは HTML では折りたたみ、markdown では省略
+    - Summary が複数行の場合 (heredoc を使った Bash など)、markdown はコードフェンスで全文表示、
+      1行なら現状どおりインライン表示。複数行判定はテンプレート関数 `isMultiline` で行い、Bash に限定せず全ツールに適用する
+    - HTML は `<summary>` 内のため視覚上は CSS で1行にクランプし、コピー対象 (copy-src) を全文とする。
+      md のフェンス全文表示と見え方が異なるのは意図的 (折りたたみ UI では1行表示が自然で、全文は展開した input / コピーで取得できる)
+    - `ProjectPath` 配下の絶対パスは Summary 組み立て時に相対パスへ短縮する (`filepath.Rel` ベース)。
+      ルート外のパス (`~/.claude/...`、`/tmp/...` など) はそのまま。対象はパスを Summary に採用するツール (Read / Edit / Write 等) で、
+      Bash のコマンド文字列は書き換えない (コマンドの再現性を優先する)
 3. 権限拒否
     - 明示マーク (例: 🚫 拒否) と `DenyReason` を両形式で必ず表示
+    - HTML では複数行の Summary も視覚1行クランプ + 全文コピーボタンで扱う (ツール呼び出しと同方針)
 4. 翻訳 (`--translate`)
     - `claude -p --model haiku` を外部プロセスとして呼び出す。無指定なら原文のまま
     - 対象は `Subagent.Prompt` と `Subagent.Answer` のみ
@@ -191,7 +262,9 @@ type Subagent struct {
   AI向け用途では許容する (既知の制限として README に記載)
 - デフォルト HTML: 1ファイル完結 (CSS 埋め込み・外部依存なし)。発話は色分けのチャット風、
   ツール呼び出しはコンパクトな行 + 折りたたみ、ヘッダーにセッション概要
-  (日時・プロジェクト・イベント件数・拒否件数)
+  (日時・プロジェクト・イベント件数・拒否件数・モデル名)
+- モデル名は `Session.Models` を登場順にカンマ区切りで列挙する。1つも取れないセッションではモデル行を出さない
+  (サブエージェント内部のモデルはメインループのレコードに現れないため、自然にメインループのモデルのみが対象になる)
 
 ## エラー処理
 
@@ -220,11 +293,11 @@ type Subagent struct {
 
 ## リポジトリ構成
 
-`~/Personal/develop/cctx`
+`~/Personal/develop/ccrender`
 
 ```
-cctx/
-├── cmd/cctx/main.go        # CLI エントリ (flag 解釈のみ)
+ccrender/
+├── cmd/ccrender/main.go    # CLI エントリ (flag 解釈のみ)
 ├── internal/
 │   ├── locate/             # 入力解決 (パス/ID/--latest)
 │   ├── parse/              # JSONL → Session モデル
