@@ -101,6 +101,60 @@ func TestValidateFlags(t *testing.T) {
 	}
 }
 
+func TestRealMainDispatch(t *testing.T) {
+	cases := []struct {
+		name       string
+		args       []string
+		wantExit   int
+		wantStdout string // 空なら stdout は検査しない
+		wantStderr string // 空なら stderr は検査しない
+	}{
+		{"引数なしは使い方を stderr へ", nil, 1, "", "使い方"},
+		{"-h は使い方を stdout へ", []string{"-h"}, 0, "使い方", ""},
+		{"help は使い方を stdout へ", []string{"help"}, 0, "使い方", ""},
+		{"使い方に用例を含む", []string{"help"}, 0, "ccrender both --latest", ""},
+		{"help md はフラグ一覧を stdout へ", []string{"help", "md"}, 0, "-template-md", ""},
+		{"help stdout もフラグ一覧を stdout へ", []string{"help", "stdout"}, 0, "-template-md", ""},
+		{"md -h はフラグ一覧を stdout へ", []string{"md", "-h"}, 0, "-template-md", ""},
+		{"未知のサブコマンド", []string{"foo"}, 1, "", "未知のサブコマンドです"},
+		{"未知のサブコマンドにも使い方", []string{"foo"}, 1, "", "使い方"},
+		{"help の後の未知サブコマンド", []string{"help", "foo"}, 1, "", "未知のサブコマンドです"},
+		{"旧形式 (ID 直接) は未知サブコマンド扱い", []string{"abc123"}, 1, "", "未知のサブコマンドです"},
+		{"属さないフラグは stderr + exit 1", []string{"stdout", "-o", "x", "abc"}, 1, "", "-o"},
+		{"残る検査: --latest と位置引数", []string{"md", "--latest", "abc"}, 1, "", "--latest"},
+		{"残る検査: --project 単独", []string{"md", "--project", "x", "abc"}, 1, "", "--project"},
+		{"残る検査: 入力なし", []string{"both"}, 1, "", "入力"},
+		{"残る検査: 位置引数2つ", []string{"md", "abc", "def"}, 1, "", "位置引数"},
+	}
+	for _, tc := range cases {
+		var stdout, stderr bytes.Buffer
+		got := realMain(tc.args, &stdout, &stderr)
+		if got != tc.wantExit {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", tc.name, got, tc.wantExit, stderr.String())
+		}
+		if tc.wantStdout != "" && !strings.Contains(stdout.String(), tc.wantStdout) {
+			t.Errorf("%s: stdout に %q がない: %s", tc.name, tc.wantStdout, stdout.String())
+		}
+		if tc.wantStderr != "" && !strings.Contains(stderr.String(), tc.wantStderr) {
+			t.Errorf("%s: stderr に %q がない: %s", tc.name, tc.wantStderr, stderr.String())
+		}
+		if tc.wantExit == 0 && stderr.Len() > 0 {
+			t.Errorf("%s: 正常系なのに stderr に出力がある: %s", tc.name, stderr.String())
+		}
+	}
+}
+
+func TestRealMainStdoutEndToEnd(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	got := realMain([]string{"stdout", "../../internal/parse/testdata/session_small.jsonl"}, &stdout, &stderr)
+	if got != 0 {
+		t.Fatalf("exit = %d, want 0 (stderr: %s)", got, stderr.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("# セッション sess-0001")) {
+		t.Error("stdout サブコマンドで md が出力されていない")
+	}
+}
+
 func TestRunEndToEnd(t *testing.T) {
 	outDir := t.TempDir()
 	var stdout, stderr bytes.Buffer

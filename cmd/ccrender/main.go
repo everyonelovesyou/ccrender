@@ -128,24 +128,88 @@ func validateSessionID(id string) error {
 	return nil
 }
 
-func main() {
-	var c config
-	flag.StringVar(&c.format, "format", "", "出力形式 md|html|both (デフォルト: both、--stdout 時は md)")
-	flag.StringVar(&c.outDir, "o", "", "出力先ディレクトリ (デフォルト: カレント)")
-	flag.StringVar(&c.tmplMD, "template-md", "", "Markdown 用の自作テンプレート")
-	flag.StringVar(&c.tmplHTML, "template-html", "", "HTML 用の自作テンプレート")
-	flag.BoolVar(&c.stdout, "stdout", false, "ファイルに書かず標準出力へ (md のみ)")
-	flag.BoolVar(&c.doTranslate, "translate", false, "サブエージェントの英語プロンプト/回答を日本語訳")
-	flag.BoolVar(&c.latest, "latest", false, "最新セッションを対象にする")
-	flag.StringVar(&c.project, "project", "", "--latest の対象をプロジェクト名で絞る")
-	flag.Parse()
-	c.arg = flag.Arg(0)
-	c.narg = flag.NArg()
+const usageText = `使い方: ccrender <サブコマンド> [フラグ] <入力>
 
-	if err := run(&c, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, "ccrender:", err)
-		os.Exit(1)
+サブコマンド:
+  md      Markdown をファイルに書き出す
+  html    HTML をファイルに書き出す
+  both    Markdown と HTML の両方をファイルに書き出す
+  stdout  Markdown を標準出力へ書く (パイプ用)
+  help    使い方を表示する (help <サブコマンド> でフラグ一覧)
+
+入力 (全サブコマンド共通):
+  <パス>                  パス直接指定
+  <セッションID>          前方一致で ~/.claude/projects/ を探索
+  --latest [--project p]  最新セッション (mtime 基準)
+
+用例:
+  ccrender both --latest
+  ccrender md abc123
+  ccrender html -o out path/to/session.jsonl
+  ccrender stdout --latest --project my-app
+
+フラグは位置引数より前に置いてください。詳細: ccrender help <サブコマンド>
+`
+
+func printUsage(w io.Writer) {
+	fmt.Fprint(w, usageText)
+}
+
+// printSubcommandUsage は name のフラグ一覧を w へ書く。未知の name は呼び出し側で弾いておく。
+func printSubcommandUsage(name string, w io.Writer) {
+	_, fs, ok := newSubcommand(name)
+	if !ok {
+		return
 	}
+	fmt.Fprintf(w, "使い方: ccrender %s [フラグ] <入力>\n\nフラグ:\n", name)
+	fs.SetOutput(w)
+	fs.PrintDefaults()
+}
+
+// realMain はサブコマンドへ分岐し exit コードを返す。
+// help 系の正常表示は stdout (exit 0)、エラー起因の表示は stderr (exit 1)。
+func realMain(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		printUsage(stderr)
+		return 1
+	}
+	switch args[0] {
+	case "-h", "-help", "--help", "help":
+		if args[0] == "help" && len(args) > 1 {
+			if _, _, ok := newSubcommand(args[1]); !ok {
+				fmt.Fprintf(stderr, "ccrender: 未知のサブコマンドです: %q\n", args[1])
+				printUsage(stderr)
+				return 1
+			}
+			printSubcommandUsage(args[1], stdout)
+			return 0
+		}
+		printUsage(stdout)
+		return 0
+	}
+	if _, _, ok := newSubcommand(args[0]); !ok {
+		fmt.Fprintf(stderr, "ccrender: 未知のサブコマンドです: %q\n", args[0])
+		printUsage(stderr)
+		return 1
+	}
+	c, err := parseSubcommand(args[0], args[1:])
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			printSubcommandUsage(args[0], stdout)
+			return 0
+		}
+		fmt.Fprintln(stderr, "ccrender:", err)
+		return 1
+	}
+	if err := run(c, stdout, stderr); err != nil {
+		fmt.Fprintln(stderr, "ccrender:", err)
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	os.Exit(realMain(os.Args[1:], os.Stdout, os.Stderr))
 }
 
 func run(c *config, stdout, stderr io.Writer) error {
