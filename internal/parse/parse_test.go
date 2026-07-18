@@ -130,6 +130,19 @@ func TestParseTimeLocal(t *testing.T) {
 	}
 }
 
+// ユーザーのシェル実行 (! prefix) はタグを剥がして整形する
+func TestBashTagsFormatted(t *testing.T) {
+	if got := stripNoise("<bash-input>ls -la</bash-input>"); got != "$ ls -la" {
+		t.Errorf("bash-input = %q, want %q", got, "$ ls -la")
+	}
+	if got := stripNoise("<bash-stdout>file1\nfile2</bash-stdout><bash-stderr></bash-stderr>"); got != "file1\nfile2" {
+		t.Errorf("bash-stdout = %q, want %q", got, "file1\nfile2")
+	}
+	if got := stripNoise("<bash-stdout></bash-stdout><bash-stderr>oops</bash-stderr>"); got != "oops" {
+		t.Errorf("bash-stderr = %q, want %q", got, "oops")
+	}
+}
+
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
