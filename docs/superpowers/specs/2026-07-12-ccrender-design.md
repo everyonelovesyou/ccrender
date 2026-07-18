@@ -1,18 +1,21 @@
-# ccrender 設計書 — Claude Code トランスクリプト整形ツール
+# ccrender 設計書
+
+Claude Code トランスクリプト描画ツール
 
 - 日付: 2026-07-12
 - ステータス: 承認済み (ブレインストーミングで節ごとに承認)
 - 追記: 2026-07-12 設計レビュー + トランスクリプト実地調査の反映 (サブエージェント紐付け、データモデル拡張、フラグ規則ほか)
 - 追記: 2026-07-14 スキル発動エントリの特別描画を統合 (EventKind 7種目 `skill_invocation` を追加。PR #2)
 - 追記: 2026-07-16 描画改善4件を統合 (空アシスタントターンの見出し、複数行 Summary、モデル名統計、パス相対化。PR #3)
-- 追記: 2026-07-18 ツール名を cctx から ccrender にリネーム
+- 追記: 2026-07-18 ツール名を cctx から ccrender にリネーム (PR #4)
+- 追記: 2026-07-18 CLI をサブコマンド形式に再設計 (`--format` / `--stdout` をサブコマンドに畳み込み。PR #5)
 
 ## 目的
 
 Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.jsonl`) を読み、
-テンプレートエンジンで次の2形式に整形して書き出す CLI ツール。
+テンプレートエンジンで次の2形式にレンダリングして書き出す CLI ツール。
 
-- **AI向け markdown** — 別セッションやサブエージェントへの文脈引き継ぎ用。トークン節約を優先
+- **AI向け Markdown** — 別セッションやサブエージェントへの文脈引き継ぎ用。トークン節約を優先
 - **人間向け HTML** — 過去セッションの振り返り用。1ファイル完結で読みやすさを優先
 
 ## 方針
@@ -26,24 +29,40 @@ Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.
 
 ## CLI
 
-```
-ccrender [flags] <入力>
+出力形式はフラグではなくサブコマンドで指定する (サブコマンドの省略は不可)。
+矛盾するフラグの組み合わせ (`--stdout --format html` 等) を「構造的に表現できない」形にするための設計で、機能はフラグ時代と同一。
 
-入力の指定 (3形態):
-  ccrender path/to/session.jsonl        # パス直接
-  ccrender bbfac067                     # セッションID (前方一致で ~/.claude/projects/ を探索)
-  ccrender --latest                     # 最新セッション
-  ccrender --latest --project Workspace # プロジェクト名で絞った最新
-
-主なフラグ:
-  --format md|html|both   出力形式 (デフォルト: both)
-  -o <dir>                出力先ディレクトリ (デフォルト: カレント)
-                          ファイル名は <セッションID>.md / .html を自動命名
-  --template-md <path>    markdown 用の自作テンプレート
-  --template-html <path>  HTML 用の自作テンプレート
-  --stdout                ファイルに書かず標準出力へ (md のみ、パイプ用)
-  --translate             サブエージェントの英語プロンプト/回答を claude -p で日本語訳
 ```
+ccrender <サブコマンド> [フラグ] <入力>
+
+サブコマンド:
+  md      Markdown をファイルに書き出す
+  html    HTML をファイルに書き出す
+  both    Markdown と HTML の両方をファイルに書き出す
+  stdout  Markdown を標準出力へ書く (パイプ用)
+  help    使い方を表示する (help <サブコマンド> でフラグ一覧)
+
+入力の指定 (全サブコマンド共通、3形態):
+  ccrender md path/to/session.jsonl          # パス直接
+  ccrender md bbfac067                       # セッションID (前方一致で ~/.claude/projects/ を探索)
+  ccrender both --latest                     # 最新セッション
+  ccrender both --latest --project Workspace # プロジェクト名で絞った最新
+```
+
+### サブコマンドとフラグの対応
+
+| サブコマンド | 固有フラグ |
+| --- | --- |
+| `md` | `-o`, `--template-md` |
+| `html` | `-o`, `--template-html` |
+| `both` | `-o`, `--template-md`, `--template-html` |
+| `stdout` | `--template-md` |
+
+- 共通フラグ: `--translate`, `--latest`, `--project`
+- `-o <dir>` — 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.md` / `.html` を自動命名
+- `--template-md` / `--template-html` — 自作テンプレートへの差し替え
+- `--translate` — サブエージェントの英語プロンプト/回答を claude -p で日本語訳
+- フラグは位置引数より前に置く (Go flag は最初の非フラグ引数でパースを打ち切る)。README に明示済み
 
 ### 入力解決の規則
 
@@ -53,13 +72,45 @@ ccrender [flags] <入力>
 - `--project` はプロジェクトディレクトリ名 (`-Users-...` 形式) への部分一致で絞り込む。
   ディレクトリ名は元パスの `/` 以外の文字も `-` に潰した不可逆エンコードのため、元パスへの復元はしない
 
-### フラグの組み合わせ規則 (矛盾指定は明示エラー)
+### 検査規則 (入力軸のみ、矛盾指定は明示エラー)
 
-- `--stdout` 指定時に許可される `--format` は md のみ (省略時は md とみなす)。
-  `--stdout --format html` / `--stdout --format both` はエラー
-- `-o` と `--stdout` の同時指定はエラー
-- `--latest` と位置引数の同時指定はエラー
-- `--project` は `--latest` と組み合わせたときのみ有効。単独指定はエラー
+出力軸の矛盾 (`--stdout` × `--format` 等) はサブコマンド化で構造的に消滅し、検査は入力軸の4件のみ。
+
+1. 位置引数は1つのみ
+2. `--latest` と位置引数の同時指定はエラー
+3. `--project` は `--latest` と組み合わせたときのみ有効。単独指定はエラー
+4. 入力の指定なし (位置引数も `--latest` もなし) はエラー
+
+属さないフラグ (`ccrender stdout -o x` 等) は FlagSet の未定義フラグエラーで弾かれる。
+
+### ヘルプとエラーの挙動
+
+原則: help 系の正常表示はすべて stdout (exit 0)、エラー起因の表示はすべて stderr (exit 1)。
+
+| 呼び出し | 挙動 |
+| --- | --- |
+| `ccrender` (引数なし) | 使い方一覧を stderr へ、exit 1 |
+| `ccrender -h` / `ccrender help` | 使い方一覧を stdout へ、exit 0 |
+| `ccrender help <サブコマンド>` / `ccrender <サブコマンド> -h` | フラグ一覧を stdout へ、exit 0 |
+| `ccrender foo` (未知) | 「未知のサブコマンドです: %q」+ 使い方一覧を stderr へ、exit 1 |
+
+- 使い方一覧には用例を必ず含める。旧形式 (`ccrender abc123` 等) は未知のサブコマンド経路に落ちるが、移行ヒントの特別扱いはしない (用例つき一覧で足りる)
+- FlagSet は `ContinueOnError` モードで生成し、パースエラーは main の既存エラー経路 (exit 1) に合流させる。
+  `-h` は `flag.ErrHelp` を `errors.Is` で拾って exit 0 に特別扱いする。
+  `ExitOnError` は使わない (フラグ起因だけ exit 2 になり、os.Exit が flag 内部で起きてテストしにくい)
+
+### 実装構造 (cmd/ccrender)
+
+外部 CLI ライブラリ (cobra 等) は導入せず、標準ライブラリの `flag.NewFlagSet` によるサブコマンド分岐で実装する。
+
+```
+main()
+  → os.Args[1] で分岐 (なし / -h / help / 未知はここで処理)
+  → parseSubcommand(name string, args []string) (*config, error)
+      // サブコマンドごとに flag.NewFlagSet を組み立てる
+      // config.format / config.stdout はフラグではなくサブコマンド名から決まる
+  → run(c, stdout, stderr)
+```
 
 ## データモデル
 
@@ -110,7 +161,7 @@ type Subagent struct {
 }
 ```
 
-- ツール結果の20行切り詰め (markdown) と「サブエージェント回答は要約せず埋め込む」は
+- ツール結果の20行切り詰め (Markdown) と「サブエージェント回答は要約せず埋め込む」は
   `ToolCall.Result` と `Subagent.Answer` という別フィールドに分かれるため矛盾しない。
   テンプレートは `Result` にのみ `truncateLines` を適用する
 
@@ -223,15 +274,15 @@ type Subagent struct {
 ## レンダリング仕様
 
 1. ツール結果の扱い
-    - markdown: 先頭20行で切り、`… (残りX行省略)` を付記
+    - Markdown: 先頭20行で切り、`… (残りX行省略)` を付記
       (切り詰めはテンプレート関数 `truncateLines` として提供し、行数は自作テンプレート側で変更可能)
     - HTML: 全文を `<details>` の折りたたみに収録し、閉じた状態でサマリー1行を表示
     - `HasResult=false` (tool_result 欠落) は「(結果なし)」と表示
     - 切り詰め対象は `ToolCall.Result` のみ。`Subagent.Prompt` / `Answer` は両形式とも全文
       (HTML では `<details>` 折りたたみ可)
 2. ツール呼び出しの表示
-    - `Summary` を常時表示。`Input` の全パラメータは HTML では折りたたみ、markdown では省略
-    - Summary が複数行の場合 (heredoc を使った Bash など)、markdown はコードフェンスで全文表示、
+    - `Summary` を常時表示。`Input` の全パラメータは HTML では折りたたみ、Markdown では省略
+    - Summary が複数行の場合 (heredoc を使った Bash など)、Markdown はコードフェンスで全文表示、
       1行なら現状どおりインライン表示。複数行判定はテンプレート関数 `isMultiline` で行い、Bash に限定せず全ツールに適用する
     - HTML は `<summary>` 内のため視覚上は CSS で1行にクランプし、コピー対象 (copy-src) を全文とする。
       md のフェンス全文表示と見え方が異なるのは意図的 (折りたたみ UI では1行表示が自然で、全文は展開した input / コピーで取得できる)
@@ -253,12 +304,12 @@ type Subagent struct {
 
 ## テンプレート
 
-- markdown: `text/template`、HTML: `html/template` (自動エスケープ付き)
+- Markdown: `text/template`、HTML: `html/template` (自動エスケープ付き)
 - デフォルトテンプレートは `go:embed` でバイナリに同梱。
   `--template-md` / `--template-html` で外部ファイルに差し替え可能
 - テンプレートに渡るのは `Session` 構造体そのもの。README に変数一覧を記載
 - テンプレート関数: `truncateLines` (先頭N行切り詰め + 省略行数付記)、`firstLine` (HTML の `<details>` サマリー用)
-- markdown 出力 (`text/template`) はエスケープしない。発話中の ``` 等が出力構造を壊し得るが、
+- Markdown 出力 (`text/template`) はエスケープしない。発話中の ``` 等が出力構造を壊し得るが、
   AI向け用途では許容する (既知の制限として README に記載)
 - デフォルト HTML: 1ファイル完結 (CSS 埋め込み・外部依存なし)。発話は色分けのチャット風、
   ツール呼び出しはコンパクトな行 + 折りたたみ、ヘッダーにセッション概要
@@ -314,3 +365,5 @@ ccrender/
 - サイドチェーン内部の詳細な展開
 - thinking ブロックの出力
 - 複数セッションの一括変換・集計 (ccmetrics の領分)
+- フラグ後置の許容 (引数並べ替え)。
+  `ccrender md abc123 --translate` の `--translate` は位置引数扱いになる (Go flag の仕様)
