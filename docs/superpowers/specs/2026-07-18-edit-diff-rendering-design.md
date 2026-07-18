@@ -10,7 +10,7 @@ Edit ツールの描画が結果メッセージ (「updated successfully」) の
 
 ## スコープ
 
-- 対象ツールは **Edit のみ**。Write / NotebookEdit は対象外。
+- 対象ツールは **Edit のみ**。Write / NotebookEdit / MultiEdit は対象外 (MultiEdit は `edits` 配列で input の形が異なり、単純な old→new の並置では表現できないため。出現時は従来どおり生 JSON 表示)。
 - 同一ファイルへの連続 Edit を「Edit ×N」と折り畳む案は**今回は見送り** (イベント列の構造変更を伴うため別件)。
 - diff は真の差分計算 (Myers/LCS) を行わず、old 全行に `-`、new 全行に `+` を付けて並べる**擬似 unified diff** とする。依存ゼロを維持する。
 
