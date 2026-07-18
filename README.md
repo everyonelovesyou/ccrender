@@ -16,40 +16,91 @@ go build -o ccrender ./cmd/ccrender
 
 ## 使い方
 
-入力の指定方法は次の3形態です。
+```
+ccrender <サブコマンド> [フラグ] <入力>
+```
+
+出力形式はサブコマンドで選びます。`ccrender help` で使い方一覧、`ccrender help <サブコマンド>` で各サブコマンドのフラグ一覧を表示します。
+
+**注意: フラグは位置引数より前に置いてください。** Go 標準 flag の仕様により、最初の位置引数より後のフラグはフラグとして解釈されません (`ccrender md abc123 --translate` の `--translate` は位置引数扱いになりエラー)。
+
+### 入力の指定 (全サブコマンド共通)
+
+次の3形態です。
 
 ```bash
-ccrender path/to/session.jsonl        # パス直接指定
-ccrender 1a2b3c4d                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
-ccrender --latest                     # 最新セッション (ファイル mtime 基準)
-ccrender --latest --project my-app    # プロジェクト名 (ディレクトリ名の部分一致) で絞った最新セッション
+ccrender md path/to/session.jsonl        # パス直接指定
+ccrender md 1a2b3c4d                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
+ccrender md --latest                     # 最新セッション (ファイル mtime 基準)
+ccrender md --latest --project my-app    # プロジェクト名 (ディレクトリ名の部分一致) で絞った最新セッション
 ```
 
 - 位置引数はまずファイルパスとして存在確認し、存在しなければセッションIDの前方一致として探索します。
-- `--project` は `--latest` と組み合わせたときのみ有効です (単独指定はエラー)。
 
-### フラグ一覧
-
-`ccrender -h` の出力と一致します。
+### 共通フラグ (全サブコマンド共通)
 
 | フラグ | 説明 |
 | --- | --- |
-| `--format string` | 出力形式 `md` / `html` / `both` (デフォルト: both、`--stdout` 時は md) |
-| `-o string` | 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.md` / `.html` を自動命名 |
-| `--template-md string` | Markdown 用のカスタムテンプレート |
-| `--template-html string` | HTML 用のカスタムテンプレート |
-| `--stdout` | ファイルに書かず標準出力へ (md のみ、パイプ用) |
 | `--translate` | サブエージェントの英語プロンプト・回答を日本語訳 ([^1]) |
 | `--latest` | 最新セッションを対象にする |
 | `--project string` | `--latest` の対象をプロジェクト名で絞る |
 
-### フラグの組み合わせ規則 (矛盾指定はエラー)
+### ccrender md — Markdown をファイルに書き出す
 
-- `--stdout` 指定時に許可される `--format` は `md` のみ (省略時は `md` とみなす)。`--stdout --format html` / `--stdout --format both` はエラー
-- `-o` と `--stdout` の同時指定はエラー
+```bash
+ccrender md --latest
+ccrender md -o out abc123
+```
+
+| 固有フラグ | 説明 |
+| --- | --- |
+| `-o string` | 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.md` を自動命名 |
+| `--template-md string` | Markdown 用のカスタムテンプレート |
+
+### ccrender html — HTML をファイルに書き出す
+
+```bash
+ccrender html --latest
+ccrender html -o out path/to/session.jsonl
+```
+
+| 固有フラグ | 説明 |
+| --- | --- |
+| `-o string` | 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.html` を自動命名 |
+| `--template-html string` | HTML 用のカスタムテンプレート |
+
+### ccrender both — Markdown と HTML の両方をファイルに書き出す
+
+```bash
+ccrender both --latest
+ccrender both -o out abc123
+```
+
+| 固有フラグ | 説明 |
+| --- | --- |
+| `-o string` | 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.md` / `.html` を自動命名 |
+| `--template-md string` | Markdown 用のカスタムテンプレート |
+| `--template-html string` | HTML 用のカスタムテンプレート |
+
+### ccrender stdout — Markdown を標準出力へ (パイプ用)
+
+```bash
+ccrender stdout --latest
+ccrender stdout abc123 | pbcopy
+```
+
+| 固有フラグ | 説明 |
+| --- | --- |
+| `--template-md string` | Markdown 用のカスタムテンプレート |
+
+### 組み合わせ規則 (矛盾指定はエラー)
+
+出力形式の矛盾はサブコマンドの構造上指定できません (例: `ccrender stdout -o x` は未定義フラグエラー)。残る規則は入力の指定に関する次の4件です。
+
 - 位置引数は1つのみ。2つ以上の指定はエラー
 - `--latest` と位置引数の同時指定はエラー
 - `--project` は `--latest` と組み合わせたときのみ有効。単独指定はエラー
+- 入力の指定なし (位置引数も `--latest` もなし) はエラー
 
 ## テンプレート変数一覧
 
@@ -159,7 +210,7 @@ ccrender --latest --project my-app    # プロジェクト名 (ディレクト�
 ````
 
 ```bash
-ccrender --template-md custom.md.tmpl session.jsonl
+ccrender md --template-md custom.md.tmpl session.jsonl
 ```
 
 ## 既知の制限
