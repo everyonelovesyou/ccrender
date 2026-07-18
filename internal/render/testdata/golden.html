@@ -343,7 +343,7 @@ EOF
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("button.copy");
     if (!btn) return;
-    var scope = btn.closest(".skill-line, .body, summary, .msg");
+    var scope = btn.closest(".skill-line, .body, summary, .msg, .deny");
     var src = scope && scope.querySelector(".copy-src");
     var old = btn.textContent;
     if (src && navigator.clipboard) {
