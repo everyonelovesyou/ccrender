@@ -1,4 +1,4 @@
-# cctx
+# ccrender
 
 Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.jsonl`) を読み込み、AI向けの markdown または人間向けの HTML に整形して書き出す CLI ツールです。別セッションやサブエージェントへの文脈引き継ぎ、あるいは過去セッションの振り返りに使えます。
 
@@ -8,10 +8,10 @@ Go 1.24以降が必要です。
 
 ```bash
 # このリポジトリを clone した状態で
-go install ./cmd/cctx
+go install ./cmd/ccrender
 
 # または、生成物を手元に置きたい場合
-go build -o cctx ./cmd/cctx
+go build -o ccrender ./cmd/ccrender
 ```
 
 ## 使い方
@@ -19,10 +19,10 @@ go build -o cctx ./cmd/cctx
 入力の指定方法は次の3形態です。
 
 ```bash
-cctx path/to/session.jsonl        # パス直接指定
-cctx 1a2b3c4d                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
-cctx --latest                     # 最新セッション (ファイル mtime 基準)
-cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名の部分一致) で絞った最新セッション
+ccrender path/to/session.jsonl        # パス直接指定
+ccrender 1a2b3c4d                     # セッションID の前方一致 (~/.claude/projects/ 以下を探索)
+ccrender --latest                     # 最新セッション (ファイル mtime 基準)
+ccrender --latest --project my-app    # プロジェクト名 (ディレクトリ名の部分一致) で絞った最新セッション
 ```
 
 - 位置引数はまずファイルパスとして存在確認し、存在しなければセッションIDの前方一致として探索します。
@@ -30,7 +30,7 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 
 ### フラグ一覧
 
-`cctx -h` の出力と一致します。
+`ccrender -h` の出力と一致します。
 
 | フラグ | 説明 |
 | --- | --- |
@@ -158,7 +158,7 @@ cctx --latest --project my-app    # プロジェクト名 (ディレクトリ名
 ````
 
 ```bash
-cctx --template-md custom.md.tmpl session.jsonl
+ccrender --template-md custom.md.tmpl session.jsonl
 ```
 
 ## 既知の制限

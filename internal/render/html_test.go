@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"cctx/internal/parse"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
 )
 
 // ts は "HH:MM" 形式から 2026-07-12 の time.Time を組み立てる (テスト用)
