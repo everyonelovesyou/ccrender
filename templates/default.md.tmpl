@@ -30,6 +30,12 @@
 {{- else}}
 🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
 {{- end}}
+{{- if .Tool.Diff}}
+
+```diff
+{{.Tool.Diff}}
+```
+{{- end}}
 {{- if .Tool.HasResult}}
 
 ```

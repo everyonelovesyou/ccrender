@@ -57,6 +57,7 @@ func fixtureSession() *parse.Session {
 			{Kind: parse.KindToolCall, Timestamp: at(9), Tool: &parse.ToolCall{
 				Name: "Edit", Summary: "internal/render/render.go",
 				Input:     "{\n  \"file_path\": \"internal/render/render.go\"\n}",
+				Diff:      "- foo\n+ bar",
 				HasResult: true, Result: "ok",
 			}},
 			// heredoc を含む複数行 Bash: フェンス全文 (md) / 全文 copy-src (html) で表示される。
