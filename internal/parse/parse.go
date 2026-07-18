@@ -203,7 +203,7 @@ func subagentEvent(b contentBlock, ts time.Time, results map[string]contentBlock
 	}
 	if !found {
 		// 明示的な縮退: 本流 tool_result の text で代替し、警告を出す (無言のフォールバックはしない)
-		fmt.Fprintf(warn, "cctx: 警告: サブエージェント記録が見つかりません (tool_use %s)。本流の tool_result で代替します\n", b.ID)
+		fmt.Fprintf(warn, "ccrender: 警告: サブエージェント記録が見つかりません (tool_use %s)。本流の tool_result で代替します\n", b.ID)
 		if res, ok := results[b.ID]; ok {
 			sub.Answer = res.resultText()
 		}

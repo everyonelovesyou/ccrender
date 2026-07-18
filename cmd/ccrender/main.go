@@ -1,4 +1,4 @@
-// cctx は Claude Code のセッショントランスクリプトを markdown / HTML へ整形する CLI。
+// ccrender は Claude Code のセッショントランスクリプトから Markdown / HTML に描画する CLI。
 package main
 
 import (
@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"cctx/internal/locate"
-	"cctx/internal/parse"
-	"cctx/internal/render"
-	"cctx/internal/translate"
+	"github.com/everyonelovesyou/ccrender/internal/locate"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
+	"github.com/everyonelovesyou/ccrender/internal/render"
+	"github.com/everyonelovesyou/ccrender/internal/translate"
 )
 
 type config struct {
@@ -81,7 +81,7 @@ func main() {
 	var c config
 	flag.StringVar(&c.format, "format", "", "出力形式 md|html|both (デフォルト: both、--stdout 時は md)")
 	flag.StringVar(&c.outDir, "o", "", "出力先ディレクトリ (デフォルト: カレント)")
-	flag.StringVar(&c.tmplMD, "template-md", "", "markdown 用の自作テンプレート")
+	flag.StringVar(&c.tmplMD, "template-md", "", "Markdown 用の自作テンプレート")
 	flag.StringVar(&c.tmplHTML, "template-html", "", "HTML 用の自作テンプレート")
 	flag.BoolVar(&c.stdout, "stdout", false, "ファイルに書かず標準出力へ (md のみ)")
 	flag.BoolVar(&c.doTranslate, "translate", false, "サブエージェントの英語プロンプト/回答を日本語訳")
@@ -92,7 +92,7 @@ func main() {
 	c.narg = flag.NArg()
 
 	if err := run(&c, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, "cctx:", err)
+		fmt.Fprintln(os.Stderr, "ccrender:", err)
 		os.Exit(1)
 	}
 }
@@ -118,7 +118,7 @@ func run(c *config, stdout, stderr io.Writer) error {
 		return err
 	}
 	if session.Stats.SkippedLines > 0 {
-		fmt.Fprintf(stderr, "cctx: %d行をスキップしました\n", session.Stats.SkippedLines)
+		fmt.Fprintf(stderr, "ccrender: %d行をスキップしました\n", session.Stats.SkippedLines)
 	}
 	if c.doTranslate {
 		if err := translate.Apply(session, translate.NewClaude()); err != nil {
@@ -167,7 +167,7 @@ func run(c *config, stdout, stderr io.Writer) error {
 		if err := os.WriteFile(o.path, o.data, 0o644); err != nil {
 			return fmt.Errorf("出力先に書けません: %w", err)
 		}
-		fmt.Fprintf(stderr, "cctx: %s を書き出しました\n", o.path)
+		fmt.Fprintf(stderr, "ccrender: %s を書き出しました\n", o.path)
 	}
 	return nil
 }

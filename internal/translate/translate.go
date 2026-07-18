@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"cctx/internal/parse"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
 )
 
 type Translator interface {
@@ -28,7 +28,7 @@ func NewClaude() *Claude {
 	return &Claude{Command: "claude", Model: "haiku", Timeout: 120 * time.Second}
 }
 
-var segRE = regexp.MustCompile(`(?m)^<<<CCTX-SEG \d+>>>$`)
+var segRE = regexp.MustCompile(`(?m)^<<<CCRENDER-SEG \d+>>>$`)
 
 // Translate は全テキストを1回の claude -p 呼び出しにまとめて翻訳する (逐次起動の遅延を避ける)。
 func (c *Claude) Translate(texts []string) ([]string, error) {
@@ -37,10 +37,10 @@ func (c *Claude) Translate(texts []string) ([]string, error) {
 	}
 	var sb strings.Builder
 	sb.WriteString("以下の各セグメントを日本語に翻訳してください。既に日本語主体のセグメントは一切変更せずそのまま返してください。\n")
-	sb.WriteString("セグメントは行頭のマーカー <<<CCTX-SEG n>>> で区切られています。出力にも同じマーカー行をそのまま含め、セグメント数を変えないでください。\n")
+	sb.WriteString("セグメントは行頭のマーカー <<<CCRENDER-SEG n>>> で区切られています。出力にも同じマーカー行をそのまま含め、セグメント数を変えないでください。\n")
 	sb.WriteString("マーカー行とセグメント本文以外 (前置き・後置き・説明) は出力しないでください。\n")
 	for i, t := range texts {
-		fmt.Fprintf(&sb, "\n<<<CCTX-SEG %d>>>\n%s\n", i+1, t)
+		fmt.Fprintf(&sb, "\n<<<CCRENDER-SEG %d>>>\n%s\n", i+1, t)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()

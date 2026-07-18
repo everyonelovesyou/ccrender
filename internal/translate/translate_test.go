@@ -4,11 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"cctx/internal/parse"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
 )
 
 func TestSplitSegments(t *testing.T) {
-	out := "<<<CCTX-SEG 1>>>\n訳文1\n<<<CCTX-SEG 2>>>\n訳文2\n"
+	out := "<<<CCRENDER-SEG 1>>>\n訳文1\n<<<CCRENDER-SEG 2>>>\n訳文2\n"
 	got, err := splitSegments(out, 2)
 	if err != nil || len(got) != 2 || got[0] != "訳文1" || got[1] != "訳文2" {
 		t.Fatalf("splitSegments = %+v, %v", got, err)
@@ -17,7 +17,7 @@ func TestSplitSegments(t *testing.T) {
 
 func TestSplitSegmentsLeadingPreamble(t *testing.T) {
 	// マーカーより前の前置きは捨てる
-	out := "はい、翻訳します。\n<<<CCTX-SEG 1>>>\n訳文\n"
+	out := "はい、翻訳します。\n<<<CCRENDER-SEG 1>>>\n訳文\n"
 	got, err := splitSegments(out, 1)
 	if err != nil || got[0] != "訳文" {
 		t.Fatalf("splitSegments = %+v, %v", got, err)
@@ -25,7 +25,7 @@ func TestSplitSegmentsLeadingPreamble(t *testing.T) {
 }
 
 func TestSplitSegmentsCountMismatch(t *testing.T) {
-	if _, err := splitSegments("<<<CCTX-SEG 1>>>\nx\n", 2); err == nil {
+	if _, err := splitSegments("<<<CCRENDER-SEG 1>>>\nx\n", 2); err == nil {
 		t.Fatal("セグメント数不一致でエラーにならない")
 	}
 }

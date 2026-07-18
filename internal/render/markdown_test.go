@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cctx/internal/parse"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
 )
 
 var update = flag.Bool("update", false, "golden ファイルを更新する")
@@ -56,7 +56,7 @@ func fixtureSession() *parse.Session {
 			{Kind: parse.KindAssistantMessage, Timestamp: at(9)},
 			{Kind: parse.KindToolCall, Timestamp: at(9), Tool: &parse.ToolCall{
 				Name: "Edit", Summary: "internal/render/render.go",
-				Input: "{\n  \"file_path\": \"internal/render/render.go\"\n}",
+				Input:     "{\n  \"file_path\": \"internal/render/render.go\"\n}",
 				HasResult: true, Result: "ok",
 			}},
 			// heredoc を含む複数行 Bash: フェンス全文 (md) / 全文 copy-src (html) で表示される。

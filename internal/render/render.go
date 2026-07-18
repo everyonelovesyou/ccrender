@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"cctx/internal/parse"
-	"cctx/templates"
+	"github.com/everyonelovesyou/ccrender/internal/parse"
+	"github.com/everyonelovesyou/ccrender/templates"
 )
 
 // Markdown は Session を markdown へレンダリングする。overridePath 非空なら外部テンプレートを使う。
