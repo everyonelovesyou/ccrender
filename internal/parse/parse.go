@@ -93,7 +93,8 @@ func parseTime(s string) time.Time {
 	if err != nil {
 		return time.Time{}
 	}
-	return t
+	// 記録は UTC。表示はローカル時刻で行う
+	return t.Local()
 }
 
 // collectToolResults は user レコード中の tool_result を tool_use_id で索引化する。

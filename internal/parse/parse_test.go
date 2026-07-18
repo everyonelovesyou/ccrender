@@ -107,6 +107,17 @@ func TestNoiseStrip(t *testing.T) {
 	}
 }
 
+// timestamp は UTC で記録されるため、表示用にローカル時刻へ変換する
+func TestParseTimeLocal(t *testing.T) {
+	orig := time.Local
+	time.Local = time.FixedZone("JST", 9*3600)
+	defer func() { time.Local = orig }()
+	got := parseTime("2026-07-18T03:00:00Z")
+	if got.Format("15:04") != "12:00" {
+		t.Errorf("ローカル時刻 = %q, want 12:00", got.Format("15:04"))
+	}
+}
+
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
