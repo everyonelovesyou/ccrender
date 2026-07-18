@@ -174,6 +174,11 @@ func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[str
 			}
 		}
 	}
+	if b.Name == "Read" && tc.HasResult && !tc.IsError {
+		// Read の成功結果はファイル内容の再掲にすぎないため表示しない (TODO.md)
+		tc.HasResult = false
+		tc.Result = ""
+	}
 	if kind == KindPermissionDeny {
 		// 拒否された Agent tool_use は SubagentCall ではなく PermissionDeny として扱う
 		// (サブエージェントは実際には起動されていないため)
