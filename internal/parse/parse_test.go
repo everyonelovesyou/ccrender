@@ -107,6 +107,42 @@ func TestNoiseStrip(t *testing.T) {
 	}
 }
 
+// task-notification はユーザー発話ではないため丸ごと除去する
+func TestTaskNotificationDropped(t *testing.T) {
+	if got := stripNoise("<task-notification>\n<task-id>x</task-id>\n<summary>done</summary>\n</task-notification>"); got != "" {
+		t.Errorf("task-notification が残った: %q", got)
+	}
+	jsonl := `{"type":"user","sessionId":"s1","timestamp":"2026-07-18T00:00:00Z","message":{"role":"user","content":"<task-notification>\n<task-id>x</task-id>\n</task-notification>"}}` + "\n"
+	s := parseString(t, jsonl)
+	if got := eventsOfKind(s, KindUserMessage); len(got) != 0 {
+		t.Errorf("task-notification がユーザー発言として描画される: %+v", got)
+	}
+}
+
+// timestamp は UTC で記録されるため、表示用にローカル時刻へ変換する
+func TestParseTimeLocal(t *testing.T) {
+	orig := time.Local
+	time.Local = time.FixedZone("JST", 9*3600)
+	defer func() { time.Local = orig }()
+	got := parseTime("2026-07-18T03:00:00Z")
+	if got.Format("15:04") != "12:00" {
+		t.Errorf("ローカル時刻 = %q, want 12:00", got.Format("15:04"))
+	}
+}
+
+// ユーザーのシェル実行 (! prefix) はタグを剥がして整形する
+func TestBashTagsFormatted(t *testing.T) {
+	if got := stripNoise("<bash-input>ls -la</bash-input>"); got != "$ ls -la" {
+		t.Errorf("bash-input = %q, want %q", got, "$ ls -la")
+	}
+	if got := stripNoise("<bash-stdout>file1\nfile2</bash-stdout><bash-stderr></bash-stderr>"); got != "file1\nfile2" {
+		t.Errorf("bash-stdout = %q, want %q", got, "file1\nfile2")
+	}
+	if got := stripNoise("<bash-stdout></bash-stdout><bash-stderr>oops</bash-stderr>"); got != "oops" {
+		t.Errorf("bash-stderr = %q, want %q", got, "oops")
+	}
+}
+
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }

@@ -107,6 +107,29 @@ func TestMarkdownToolOnlySession(t *testing.T) {
 	}
 }
 
+// Read の内容は意図的に非表示のため、「(結果なし)」の但し書きも出さない
+func TestMarkdownReadShowsNoResultNote(t *testing.T) {
+	toolEvent := func(name string) parse.Event {
+		return parse.Event{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: name, Summary: "/a.go"}}
+	}
+	s := &parse.Session{ID: "s", ProjectPath: "/p", Events: []parse.Event{toolEvent("Read")}}
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "(結果なし)") {
+		t.Errorf("Read に「(結果なし)」が表示される:\n%s", buf.String())
+	}
+	s.Events = []parse.Event{toolEvent("Grep")}
+	buf.Reset()
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "(結果なし)") {
+		t.Errorf("Read 以外の「(結果なし)」まで消えた:\n%s", buf.String())
+	}
+}
+
 func TestMarkdownBadOverrideTemplate(t *testing.T) {
 	dir := t.TempDir()
 	bad := dir + "/bad.tmpl"
