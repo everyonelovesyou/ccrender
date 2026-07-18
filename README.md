@@ -1,6 +1,6 @@
 # ccrender
 
-Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.jsonl`) を読み込み、AI向けの markdown または人間向けの HTML に整形して書き出す CLI ツールです。別セッションやサブエージェントへの文脈引き継ぎ、あるいは過去セッションの振り返りに使えます。
+Claude Code のセッショントランスクリプト (`~/.claude/projects/*/*.jsonl`) を読み込み、AI向け Markdown または人間向け HTML にレンダリングして書き出す CLI ツールです。別セッションやサブエージェントへの文脈引き継ぎ、あるいは過去セッションの振り返りに使えます。
 
 ## インストール
 
@@ -34,12 +34,12 @@ ccrender --latest --project my-app    # プロジェクト名 (ディレクト�
 
 | フラグ | 説明 |
 | --- | --- |
-| `--format string` | 出力形式 `md`\|`html`\|`both` (デフォルト: both、`--stdout` 時は md) |
+| `--format string` | 出力形式 `md` / `html` / `both` (デフォルト: both、`--stdout` 時は md) |
 | `-o string` | 出力先ディレクトリ (デフォルト: カレント)。ファイル名は `<セッションID>.md` / `.html` を自動命名 |
-| `--template-md string` | markdown 用の自作テンプレート |
-| `--template-html string` | HTML 用の自作テンプレート |
+| `--template-md string` | Markdown 用のカスタムテンプレート |
+| `--template-html string` | HTML 用のカスタムテンプレート |
 | `--stdout` | ファイルに書かず標準出力へ (md のみ、パイプ用) |
-| `--translate` | サブエージェントの英語プロンプト/回答を日本語訳 |
+| `--translate` | サブエージェントの英語プロンプト・回答を日本語訳 ([^1]) |
 | `--latest` | 最新セッションを対象にする |
 | `--project string` | `--latest` の対象をプロジェクト名で絞る |
 
@@ -65,7 +65,7 @@ ccrender --latest --project my-app    # プロジェクト名 (ディレクト�
 | `EndedAt` | `time.Time` | 最後のレコードの timestamp |
 | `Events` | `[]Event` | 時系列順のイベント一覧 |
 | `Stats` | `Stats` | イベント種別ごとの件数 (ヘッダー表示用) |
-| `Models` | `[]string` | 登場順・重複なしのモデル ID 一覧 (ヘッダー表示用)。空なら該当行は表示しない |
+| `Models` | `[]string` | 登場順・重複なしのモデルIDの一覧 (ヘッダー表示用)。空なら該当行は表示しない |
 
 ### Stats
 
@@ -121,13 +121,13 @@ ccrender --latest --project my-app    # プロジェクト名 (ディレクト�
 | `ByUser` | `bool` | true ならユーザーのスラッシュコマンド呼び出し、false ならエージェントによる Skill ツール発動 |
 | `Command` | `string` | `ByUser` のとき「/name 引数」の再現文字列。エージェント発動では空 |
 
-デフォルトテンプレートでの表示例 (md):
+デフォルトテンプレートでの表示例 (Markdown):
 
-```
+```md
 🔧 Skill(superpowers:brainstorming) `/Users/.../skills/brainstorming`
 ```
 
-ユーザー呼び出しは 👤 User の発言としてコマンド再現 (`/ohayou 今日も` など) と上記チップを表示します。スキル展開の本文 (手順書) はどの形式でも出力しません。
+ユーザー呼び出しは 👤 User の発言としてコマンド再現 (`/ohayou ございます` など) と上記チップを表示します。スキル展開の本文 (SKILL.md) はどの形式でも出力しません。
 
 ### テンプレート関数
 
@@ -140,9 +140,10 @@ ccrender --latest --project my-app    # プロジェクト名 (ディレクト�
 
 ### `--template-md` / `--template-html` による差し替え例
 
-デフォルトテンプレートは `go:embed` でバイナリに同梱されていますが、`--template-md` / `--template-html` で外部ファイルに差し替えられます。たとえばツール結果を10行までに切り詰めた markdown テンプレート `custom.md.tmpl` を用意し、次のように使います。
+デフォルトテンプレートは `go:embed` でバイナリに同梱されていますが、`--template-md` / `--template-html` で外部ファイルに差し替えられます。
+たとえばツール結果を10行までに切り詰めた Markdown テンプレート `custom.md.tmpl` を用意し、次のように使います。
 
-````
+````md
 # セッション {{.ID}}
 
 {{range .Events}}
@@ -163,6 +164,10 @@ ccrender --template-md custom.md.tmpl session.jsonl
 
 ## 既知の制限
 
-- markdown 出力 (`text/template`) はエスケープしません。発話中の ``` 等が出力構造を壊す可能性がありますが、AI向け用途 (トークン節約優先) では許容しています。
+- Markdown 出力 (`text/template`) はエスケープしません。発話中の ``` 等が出力構造を壊す可能性がありますが、AI向け用途 (トークン節約優先) では許容しています。
 - thinking ブロックは出力しません。
 - `--translate` は外部プロセスとして `claude` CLI (`claude -p`) を呼び出します。`claude` CLI が使える環境でのみ動作します。
+
+<!-- 脚注 -->
+
+[^1]: #既知の制限
