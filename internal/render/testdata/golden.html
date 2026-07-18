@@ -42,7 +42,7 @@
   a:hover { color: var(--accent-deep); text-decoration: underline; }
   code, pre { font-family: var(--mono); }
 
-
+   
   header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px;
            padding: 10px 24px; background: color-mix(in srgb, var(--bg) 92%, transparent);
            backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); }
@@ -57,7 +57,7 @@
   header .stats .k { background: var(--skill-bg); color: var(--skill); }
   header .stats .m { font-family: var(--mono); font-size: 12px; }
 
-
+   
   .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { display: none; } }
   nav.toc { border-right: 1px solid var(--border-soft); background: var(--panel);
@@ -74,7 +74,7 @@
   body.hide-talk .ev-talk { display: none; }
   body.hide-sub .ev-sub { display: none; }
 
-
+   
   .msg { display: flex; gap: 12px; }
   .msg .avatar { width: 30px; height: 30px; border-radius: 99px; display: flex; align-items: center;
                  justify-content: center; font-size: 15px; flex-shrink: 0;
@@ -89,12 +89,12 @@
   .msg.user .text { background: var(--accent-bg); border: 1px solid var(--accent-border);
                     border-radius: 4px 12px 12px 12px; padding: 10px 14px; }
 
-
+   
   button.copy { margin-left: auto; border: none; background: none; color: var(--muted);
                 font-size: 12px; cursor: pointer; opacity: .55; font-family: inherit; }
   button.copy:hover { opacity: 1; color: var(--accent); }
 
-
+   
   .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
   details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
   details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
@@ -121,7 +121,7 @@
   details.tool pre.result .del { display: block; background: var(--diff-del-bg); color: var(--diff-del); }
   details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
-
+   
   .skill { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--skill-border);
            background: var(--skill-bg); color: var(--skill); border-radius: 99px; padding: 2px 12px;
            font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
@@ -131,7 +131,7 @@
   .msg .cmd { font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--accent-deep); }
   .msg .text .skill-line { margin-top: 8px; }
 
-
+   
   .deny { margin-left: 42px; border: 1px solid var(--deny-border); background: var(--deny-bg);
           border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
   .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -143,11 +143,11 @@
   .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
                      color: var(--deny-text); white-space: pre-wrap; }
 
-
+   
   .note { display: flex; align-items: center; gap: 10px; color: var(--note); font-size: 12.5px; }
   .note::before, .note::after { content: ""; flex: 1; height: 1px; background: var(--note-line); }
 
-
+   
   .sub { margin-left: 42px; border: 1px solid var(--sub-border); background: var(--sub-bg);
          border-radius: 10px; overflow: hidden; }
   .sub .head { display: flex; align-items: center; gap: 8px; padding: 7px 12px;
@@ -339,7 +339,7 @@ EOF
 </main>
 </div>
 <script>
-
+  
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("button.copy");
     if (!btn) return;
@@ -363,13 +363,13 @@ EOF
     }
     ev.preventDefault();
   });
-
+  
   document.querySelectorAll(".filters input").forEach(function (cb) {
     cb.addEventListener("change", function () {
       document.body.classList.toggle(cb.dataset.toggle, !cb.checked);
     });
   });
-
+  
   document.querySelectorAll("pre.result").forEach(function (pre) {
     var html = pre.innerHTML.split("\n").map(function (line) {
       var plain = line.replace(/<[^>]*>/g, "");
