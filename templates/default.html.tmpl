@@ -116,9 +116,10 @@
                      white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
-  details.tool pre.result .err { color: var(--term-err); }
-  details.tool pre.result .add { display: block; background: var(--diff-add-bg); color: var(--diff-add); }
-  details.tool pre.result .del { display: block; background: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre.diff { background: var(--term-bg); color: var(--term-text); border-bottom: 1px solid var(--border-soft); }
+  details.tool pre .err { color: var(--term-err); }
+  details.tool pre .add { display: block; background: var(--diff-add-bg); color: var(--diff-add); }
+  details.tool pre .del { display: block; background: var(--diff-del-bg); color: var(--diff-del); }
   details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
   /* ── skill invocation ── */
@@ -226,6 +227,9 @@
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
+    {{- if $e.Tool.Diff}}
+    <pre class="diff">{{$e.Tool.Diff}}</pre>
+    {{- end}}
     <pre class="input">{{$e.Tool.Input}}</pre>
     {{- if $e.Tool.HasResult}}
     <pre class="result">{{$e.Tool.Result}}</pre>
@@ -317,7 +321,7 @@
     });
   });
   // 結果のライト整形: diff 行と FAIL/ERROR 行の色付け
-  document.querySelectorAll("pre.result").forEach(function (pre) {
+  document.querySelectorAll("pre.result, pre.diff").forEach(function (pre) {
     var html = pre.innerHTML.split("\n").map(function (line) {
       var plain = line.replace(/<[^>]*>/g, "");
       if (/^\+(?!\+\+)/.test(plain)) return '<span class="add">' + line + "</span>";
