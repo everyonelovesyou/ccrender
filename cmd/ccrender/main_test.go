@@ -74,18 +74,14 @@ func TestValidateFlags(t *testing.T) {
 		cfg     config
 		wantErr string
 	}{
-		{"stdout は md のみ", config{stdout: true, format: "html"}, "--stdout"},
-		{"stdout + both もエラー", config{stdout: true, format: "both"}, "--stdout"},
-		{"stdout + md は OK", config{stdout: true, format: "md"}, ""},
-		{"stdout + format 省略は md 扱い", config{stdout: true, format: ""}, ""},
-		{"-o と --stdout の併用", config{stdout: true, format: "md", outDir: "out"}, "-o"},
-		{"--latest と位置引数の併用", config{latest: true, arg: "abc"}, "--latest"},
-		{"--project 単独", config{project: "x", arg: "abc"}, "--project"},
-		{"不正な format", config{format: "pdf", arg: "abc"}, "format"},
-		{"入力なし", config{}, "入力"},
 		{"位置引数が2つ以上", config{arg: "abc", narg: 2}, "位置引数"},
-		{"位置引数1つは OK", config{arg: "abc", narg: 1}, ""},
-		{"通常ケース", config{arg: "abc", format: "both"}, ""},
+		{"--latest と位置引数の併用", config{latest: true, arg: "abc", narg: 1}, "--latest"},
+		{"--project 単独", config{project: "x", arg: "abc", narg: 1}, "--project"},
+		{"入力なし", config{}, "入力"},
+		{"stdout でも入力は必須", config{stdout: true, format: "md"}, "入力"},
+		{"位置引数1つは OK", config{arg: "abc", narg: 1, format: "both"}, ""},
+		{"--latest 単独は OK", config{latest: true, format: "md"}, ""},
+		{"--latest --project は OK", config{latest: true, project: "x", format: "html"}, ""},
 	}
 	for _, c := range cases {
 		err := c.cfg.validate()

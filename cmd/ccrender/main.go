@@ -31,25 +31,9 @@ type config struct {
 	projectsDir string
 }
 
-// validate はフラグの組み合わせ規則 (設計書 CLI 節) を検査する。矛盾指定は明示エラー。
+// validate は入力指定の組み合わせ規則 (設計書 CLI 節) を検査する。
+// 出力形式の矛盾はサブコマンド構造で表現できないため、入力軸のみを検査する。
 func (c *config) validate() error {
-	if c.stdout {
-		if c.format == "" {
-			c.format = "md"
-		}
-		if c.format != "md" {
-			return fmt.Errorf("--stdout は --format md のみ使えます (指定: %s)", c.format)
-		}
-		if c.outDir != "" {
-			return fmt.Errorf("-o と --stdout は同時に指定できません")
-		}
-	}
-	if c.format == "" {
-		c.format = "both"
-	}
-	if c.format != "md" && c.format != "html" && c.format != "both" {
-		return fmt.Errorf("--format は md|html|both のいずれかです (指定: %s)", c.format)
-	}
 	if c.narg > 1 {
 		return fmt.Errorf("位置引数は1つだけ指定できます (指定: %d個)", c.narg)
 	}
@@ -59,7 +43,7 @@ func (c *config) validate() error {
 	if c.project != "" && !c.latest {
 		return fmt.Errorf("--project は --latest と組み合わせたときのみ有効です")
 	}
-	if !c.stdout && !c.latest && c.arg == "" {
+	if !c.latest && c.arg == "" {
 		return fmt.Errorf("入力を指定してください (パス / セッションID / --latest)")
 	}
 	return nil
