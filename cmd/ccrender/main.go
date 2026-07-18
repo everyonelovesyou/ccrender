@@ -65,6 +65,57 @@ func (c *config) validate() error {
 	return nil
 }
 
+// newSubcommand は名前に応じた config と FlagSet を組み立てる。未知の名前は ok=false。
+// config.format / config.stdout はフラグではなくサブコマンド名から決まる。
+func newSubcommand(name string) (c *config, fs *flag.FlagSet, ok bool) {
+	c = &config{}
+	fs = flag.NewFlagSet("ccrender "+name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard) // 出力先 (stdout/stderr) は呼び出し側が制御する
+	addOut := func() { fs.StringVar(&c.outDir, "o", "", "出力先ディレクトリ (デフォルト: カレント)") }
+	addMD := func() { fs.StringVar(&c.tmplMD, "template-md", "", "Markdown 用の自作テンプレート") }
+	addHTML := func() { fs.StringVar(&c.tmplHTML, "template-html", "", "HTML 用の自作テンプレート") }
+	switch name {
+	case "md":
+		c.format = "md"
+		addOut()
+		addMD()
+	case "html":
+		c.format = "html"
+		addOut()
+		addHTML()
+	case "both":
+		c.format = "both"
+		addOut()
+		addMD()
+		addHTML()
+	case "stdout":
+		c.format = "md"
+		c.stdout = true
+		addMD()
+	default:
+		return nil, nil, false
+	}
+	fs.BoolVar(&c.doTranslate, "translate", false, "サブエージェントの英語プロンプト/回答を日本語訳")
+	fs.BoolVar(&c.latest, "latest", false, "最新セッションを対象にする")
+	fs.StringVar(&c.project, "project", "", "--latest の対象をプロジェクト名で絞る")
+	return c, fs, true
+}
+
+// parseSubcommand はサブコマンドのフラグ列をパースして config を返す。
+// -h は flag.ErrHelp をそのまま返す (exit 0 にする扱いは呼び出し側)。
+func parseSubcommand(name string, args []string) (*config, error) {
+	c, fs, ok := newSubcommand(name)
+	if !ok {
+		return nil, fmt.Errorf("未知のサブコマンドです: %q", name)
+	}
+	if err := fs.Parse(args); err != nil {
+		return nil, err
+	}
+	c.arg = fs.Arg(0)
+	c.narg = fs.NArg()
+	return c, nil
+}
+
 var safeSessionID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 func validateSessionID(id string) error {

@@ -2,11 +2,71 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestParseSubcommand(t *testing.T) {
+	cases := []struct {
+		name       string
+		sub        string
+		args       []string
+		wantFormat string
+		wantStdout bool
+		wantErr    string
+	}{
+		{"md は format=md", "md", []string{"abc"}, "md", false, ""},
+		{"html は format=html", "html", []string{"abc"}, "html", false, ""},
+		{"both は format=both", "both", []string{"abc"}, "both", false, ""},
+		{"stdout は format=md + stdout", "stdout", []string{"abc"}, "md", true, ""},
+		{"md の固有フラグ", "md", []string{"-o", "out", "--template-md", "t.tmpl", "abc"}, "md", false, ""},
+		{"html の固有フラグ", "html", []string{"--template-html", "t.tmpl", "abc"}, "html", false, ""},
+		{"共通フラグは全サブコマンドで使える", "stdout", []string{"--translate", "--latest", "--project", "x"}, "md", true, ""},
+		{"属さないフラグ: stdout に -o", "stdout", []string{"-o", "out", "abc"}, "", false, "-o"},
+		{"属さないフラグ: md に --template-html", "md", []string{"--template-html", "t", "abc"}, "", false, "template-html"},
+		{"属さないフラグ: html に --template-md", "html", []string{"--template-md", "t", "abc"}, "", false, "template-md"},
+		{"未知のサブコマンド", "foo", nil, "", false, "未知のサブコマンド"},
+	}
+	for _, tc := range cases {
+		c, err := parseSubcommand(tc.sub, tc.args)
+		if tc.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("%s: err = %v, want contains %q", tc.name, err, tc.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: 予期しないエラー %v", tc.name, err)
+			continue
+		}
+		if c.format != tc.wantFormat || c.stdout != tc.wantStdout {
+			t.Errorf("%s: format=%q stdout=%v, want %q %v", tc.name, c.format, c.stdout, tc.wantFormat, tc.wantStdout)
+		}
+	}
+}
+
+func TestParseSubcommandPositionalArgs(t *testing.T) {
+	c, err := parseSubcommand("md", []string{"-o", "out", "abc", "def"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.arg != "abc" || c.narg != 2 {
+		t.Errorf("arg=%q narg=%d, want %q 2", c.arg, c.narg, "abc")
+	}
+	if c.outDir != "out" {
+		t.Errorf("outDir=%q, want %q", c.outDir, "out")
+	}
+}
+
+func TestParseSubcommandHelp(t *testing.T) {
+	if _, err := parseSubcommand("md", []string{"-h"}); !errors.Is(err, flag.ErrHelp) {
+		t.Errorf("err = %v, want flag.ErrHelp", err)
+	}
+}
 
 func TestValidateFlags(t *testing.T) {
 	cases := []struct {
