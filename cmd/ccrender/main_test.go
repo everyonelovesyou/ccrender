@@ -168,12 +168,16 @@ func TestRunEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"こんにちは", "確認します", "🚫", "こっちは触らないで", "サブエージェント", "(結果なし)",
+		"こんにちは", "確認します", "🚫", "こっちは触らないで", "サブエージェント",
 		"/ohayou 今日も", "Skill(ohayou)", "Skill(superpowers:brainstorming)",
 	} {
 		if !bytes.Contains(md, []byte(want)) {
 			t.Errorf("md に %q がない", want)
 		}
+	}
+	// fixture 中で結果が無いのは Read (tu4) のみで、Read は但し書きも出さない
+	if bytes.Contains(md, []byte("(結果なし)")) {
+		t.Error("Read に「(結果なし)」が表示されている")
 	}
 	if bytes.Contains(md, []byte("現れてはならない")) {
 		t.Error("スキル展開本文が md に漏れている")

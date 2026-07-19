@@ -59,9 +59,6 @@ Investigation summary.
 ---
 
 🔧 **Read** — `/tmp/y.txt`
-
-(結果なし)
-
 ## 👤 User (00:00)
 
 /ohayou 今日も

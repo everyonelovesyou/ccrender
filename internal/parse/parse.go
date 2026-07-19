@@ -93,7 +93,8 @@ func parseTime(s string) time.Time {
 	if err != nil {
 		return time.Time{}
 	}
-	return t
+	// 記録は UTC。表示はローカル時刻で行う
+	return t.Local()
 }
 
 // collectToolResults は user レコード中の tool_result を tool_use_id で索引化する。
@@ -175,6 +176,11 @@ func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[str
 				}
 			}
 		}
+	}
+	if b.Name == "Read" && tc.HasResult && !tc.IsError {
+		// Read の成功結果はファイル内容の再掲にすぎないため表示しない (TODO.md)
+		tc.HasResult = false
+		tc.Result = ""
 	}
 	if kind == KindPermissionDeny {
 		// 拒否された Agent tool_use は SubagentCall ではなく PermissionDeny として扱う
