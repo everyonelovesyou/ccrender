@@ -55,6 +55,7 @@ type ToolCall struct {
 	HasResult  bool // 対応する tool_result が見つかったか
 	IsError    bool
 	DenyReason string // 権限拒否時にユーザーが添えたメッセージ (無ければ空)
+	Diff       string // Edit のとき old→new の擬似 unified diff (他ツールは空)
 }
 
 type Subagent struct {

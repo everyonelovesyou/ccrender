@@ -45,6 +45,12 @@ func TestToolCallMatched(t *testing.T) {
 	if edit.Summary != "internal/render/render.go" {
 		t.Errorf("ルート配下パスが相対化されていない: Edit Summary = %q", edit.Summary)
 	}
+	if edit.Diff != "- foo\n+ bar" {
+		t.Errorf("Edit の Diff が設定されていない: %q", edit.Diff)
+	}
+	if bash.Diff != "" {
+		t.Errorf("Edit 以外のツールに Diff が設定されている: %q", bash.Diff)
+	}
 	wantMultiline := "git commit -m \"$(cat <<'EOF'\nfeat: 変更\nEOF\n)\""
 	if multilineBash.Summary != wantMultiline {
 		t.Errorf("複数行 Bash Summary = %q, want %q", multilineBash.Summary, wantMultiline)

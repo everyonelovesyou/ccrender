@@ -153,6 +153,7 @@ ccrender stdout abc123 | pbcopy
 | `HasResult` | `bool` | tool_result との突き合わせに成功したか。false ならテンプレートは「(結果なし)」と表示 |
 | `IsError` | `bool` | 結果がエラーだったか |
 | `DenyReason` | `string` | 権限拒否時にユーザーが添えたメッセージ |
+| `Diff` | `string` | `Edit` のとき `old_string` → `new_string` の擬似 unified diff (先頭5行ずつ + 省略行)。他ツールは空 |
 
 ### Subagent
 

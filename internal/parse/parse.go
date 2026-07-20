@@ -160,6 +160,9 @@ func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[str
 		Summary: toolSummary(b.Name, b.Input, projectRoot),
 		Input:   formatInput(b.Input),
 	}
+	if b.Name == "Edit" {
+		tc.Diff = editDiff(b.Input)
+	}
 	kind := KindToolCall
 	if res, ok := results[b.ID]; ok {
 		tc.HasResult = true

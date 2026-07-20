@@ -71,6 +71,11 @@ Investigation summary.
 
 🔧 **Edit** — `internal/render/render.go`
 
+```diff
+- foo
++ bar
+```
+
 ```
 ok
 ```

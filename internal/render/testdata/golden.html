@@ -36,6 +36,7 @@
     }
   }
   * { box-sizing: border-box; }
+  @media not (forced-colors: active) { html { scrollbar-color: var(--muted) var(--panel); } }
   body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 15px;
          font-family: -apple-system, "Hiragino Sans", sans-serif; }
   a { color: var(--accent); text-decoration: none; }
@@ -44,7 +45,7 @@
 
    
   header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px;
-           padding: 10px 24px; background: color-mix(in srgb, var(--bg) 92%, transparent);
+           padding: 10px 24px; background: rgb(from var(--bg) r g b / 0.92);
            backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); }
   header .brand { font-family: var(--mono); font-size: 13px; color: var(--muted); }
   header h1 { font-size: 15px; margin: 0; font-weight: 700; }
@@ -98,11 +99,11 @@
   .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
   details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
   details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
-                           font-size: 13px; cursor: pointer; list-style: none; }
+                           font-size: 13px; cursor: pointer; list-style: ""; }
   details.tool > summary::-webkit-details-marker { display: none; }
   details.tool[open] > summary { border-bottom: 1px solid var(--border-soft); }
-  details.tool > summary .chev::before { content: "▸"; color: var(--muted); font-size: 11px; }
-  details.tool[open] > summary .chev::before { content: "▾"; }
+  details.tool > summary .chev::before { content: "◀︎"; color: var(--muted); font-size: 8px; vertical-align: middle; }
+  details.tool[open] > summary .chev::before { content: "▼"; }
   .tool-badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 5px;
                 background: var(--tool-etc-bg); color: var(--tool-etc); white-space: nowrap; }
   [data-tool="Bash"] .tool-badge { background: var(--tool-bash-bg); color: var(--tool-bash); }
@@ -112,13 +113,16 @@
     { background: var(--tool-read-bg); color: var(--tool-read); }
   details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
                                 overflow: hidden; text-overflow: ellipsis; }
-  details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6;
-                     white-space: pre-wrap; overflow-wrap: break-word; }
+  details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
+  details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
-  details.tool pre.result .err { color: var(--term-err); }
-  details.tool pre.result .add { display: block; background: var(--diff-add-bg); color: var(--diff-add); }
-  details.tool pre.result .del { display: block; background: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre.diff { background: var(--term-bg); color: var(--term-text); border-bottom: 1px solid var(--border-soft); overflow-x: auto; }
+  details.tool pre.diff :is(.add, .del) { display: inline-block; width: max-content; background-color: var(--_bg);
+                                          border-image: linear-gradient(var(--_bg) 0 0) 0 fill / 1 / 0 100vw; }
+  details.tool pre.diff .add { --_bg: var(--diff-add-bg); color: var(--diff-add); }
+  details.tool pre.diff .del { --_bg: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre .err { color: var(--term-err); }
   details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
    
@@ -305,6 +309,8 @@
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
+    <pre class="diff">- foo
+&#43; bar</pre>
     <pre class="input">{
   &#34;file_path&#34;: &#34;internal/render/render.go&#34;
 }</pre>
@@ -370,7 +376,7 @@ EOF
     });
   });
   
-  document.querySelectorAll("pre.result").forEach(function (pre) {
+  document.querySelectorAll("pre.result, pre.diff").forEach(function (pre) {
     var html = pre.innerHTML.split("\n").map(function (line) {
       var plain = line.replace(/<[^>]*>/g, "");
       if (/^\+(?!\+\+)/.test(plain)) return '<span class="add">' + line + "</span>";
