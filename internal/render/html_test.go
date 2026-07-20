@@ -86,6 +86,19 @@ func TestHTMLReadWithoutResultShowsNoNote(t *testing.T) {
 	}
 }
 
+func TestHTMLCrossDayEndedAtShowsDate(t *testing.T) {
+	// 日をまたぐセッションでは終了側にも日付を出す
+	s := &parse.Session{ID: "x", StartedAt: ts(t, "23:50")}
+	s.EndedAt = s.StartedAt.Add(20 * time.Minute) // 翌日 00:10
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "2026-07-13 00:10") {
+		t.Error("日またぎの終了時刻に日付が表示されていない")
+	}
+}
+
 func TestHTMLEmptySession(t *testing.T) {
 	var buf bytes.Buffer
 	if err := HTML(&buf, &parse.Session{ID: "empty"}, ""); err != nil {
