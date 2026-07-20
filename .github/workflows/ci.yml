@@ -1,0 +1,20 @@
+# push / PR ごとに vet と全テストを実行する。
+# 注意: golden.html は行末空白を含むのが正。
+# checkout 後にファイルを整形する処理をこのワークフローに追加しないこと (テストが golden 差分で壊れる)。
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
