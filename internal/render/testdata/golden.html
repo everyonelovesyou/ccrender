@@ -113,14 +113,15 @@
     { background: var(--tool-read-bg); color: var(--tool-read); }
   details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
                                 overflow: hidden; text-overflow: ellipsis; }
-  details.tool pre { margin: 0; padding-block: 10px; font-size: 12px; line-height: 1.6; }
-  details.tool pre:not(.diff) { padding-inline: 14px; white-space: pre-wrap; overflow-wrap: break-word; }
+  details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
+  details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
   details.tool pre.diff { background: var(--term-bg); color: var(--term-text); border-bottom: 1px solid var(--border-soft); overflow-x: auto; }
-  details.tool pre.diff > * { padding-inline: 14px; display: inline-block; width: max-content; }
-  details.tool pre.diff .add { background: var(--diff-add-bg); color: var(--diff-add); }
-  details.tool pre.diff .del { background: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre.diff :is(.add, .del) { display: inline-block; width: max-content; background-color: var(--_bg);
+                                          border-image: linear-gradient(var(--_bg) 0 0) 0 fill / 1 / 0 100vw; }
+  details.tool pre.diff .add { --_bg: var(--diff-add-bg); color: var(--diff-add); }
+  details.tool pre.diff .del { --_bg: var(--diff-del-bg); color: var(--diff-del); }
   details.tool pre .err { color: var(--term-err); }
   details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
