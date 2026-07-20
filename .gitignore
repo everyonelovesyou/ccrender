@@ -1,0 +1,5 @@
+# 実装計画はローカル保管のみ (実装時の作業文書。spec はメンテして追跡を続ける)
+docs/superpowers/plans/
+
+# HTML テンプレートデザイン作業環境
+design/

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ccrender — {{.ID}}</title>
+<style>
+  :root {
+    --bg: #fcfaf7; --panel: #f7f4ee; --card: #ffffff; --border: #ebe4d9; --border-soft: #f1ece3;
+    --text: #2b2620; --text-soft: #6b6154; --muted: #a2988a; --faint: #c1b8ab;
+    --accent: #b5502e; --accent-deep: #954023; --accent-bg: #faece2; --accent-border: #f0d9c8;
+    --deny: #b3352a; --deny-bg: #fdefed; --deny-border: #f5cdc8; --deny-text: #7e453f;
+    --note: #a08420; --note-line: #ecdfae;
+    --sub: #b23d6f; --sub-bg: #fdf6f9; --sub-border: #f0d4e0;
+    --skill: #857425; --skill-bg: #f3efd7; --skill-border: #ddd3a4;
+    --term-bg: #211c16; --term-text: #e0d9cd; --term-dim: #97897a; --term-err: #e06a5f;
+    --diff-add-bg: #edf2da; --diff-add: #58691e; --diff-del-bg: #f9e9e4; --diff-del: #9c3a26;
+    --tool-bash: #a04b8c; --tool-bash-bg: #f8ecf5;
+    --tool-edit: #a07408; --tool-edit-bg: #f8f0d9;
+    --tool-read: #6e8422; --tool-read-bg: #eef2dc;
+    --tool-etc: #6b6154; --tool-etc-bg: #f1ece3;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1815; --panel: #221d19; --card: #221d19; --border: #362f28; --border-soft: #2e2822;
+      --text: #e0d9cd; --text-soft: #b3a897; --muted: #8c8071; --faint: #6a6053;
+      --accent: #d98a5f; --accent-deep: #e5a37f; --accent-bg: #33241b; --accent-border: #4a3527;
+      --deny: #e06a5f; --deny-bg: #2b1c1a; --deny-border: #4a2823; --deny-text: #d9a49d;
+      --note: #cfae4a; --note-line: #453d1f;
+      --sub: #d97fa9; --sub-bg: #2c1e25; --sub-border: #47303b;
+      --skill: #c4b054; --skill-bg: #2a2514; --skill-border: #4a4222;
+      --term-bg: #14110d; --diff-add-bg: #232b14; --diff-add: #a4c46a; --diff-del-bg: #321d16; --diff-del: #e29c85;
+      --tool-bash: #d48cc0; --tool-bash-bg: #33202e;
+      --tool-edit: #d9ae4e; --tool-edit-bg: #3a2e10;
+      --tool-read: #a3bd58; --tool-read-bg: #262e12;
+      --tool-etc: #b3a897; --tool-etc-bg: #2a251f;
+    }
+  }
+  * { box-sizing: border-box; }
+  @media not (forced-colors: active) { html { scrollbar-color: var(--muted) var(--panel); } }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.75; font-size: 15px;
+         font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-deep); text-decoration: underline; }
+  code, pre { font-family: var(--mono); }
+
+  /* ── header ── */
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px;
+           padding: 10px 24px; background: rgb(from var(--bg) r g b / 0.92);
+           backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); }
+  header .brand { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  header h1 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  header .stats { margin-left: auto; display: flex; gap: 6px; font-size: 12px; white-space: nowrap; }
+  header .stats span { background: var(--tool-etc-bg); color: var(--text-soft); padding: 2px 10px; border-radius: 99px; }
+  header .stats .u { background: var(--accent-bg); color: var(--accent-deep); }
+  header .stats .d { background: var(--deny-bg); color: var(--deny); }
+  header .stats .s { background: var(--sub-bg); color: var(--sub); }
+  header .stats .k { background: var(--skill-bg); color: var(--skill); }
+  header .stats .m { font-family: var(--mono); font-size: 12px; }
+
+  /* ── layout ── */
+  .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.toc { display: none; } }
+  nav.toc { border-right: 1px solid var(--border-soft); background: var(--panel);
+            position: sticky; top: 49px; height: calc(100vh - 49px); overflow-y: auto; padding: 16px 0; }
+  nav.toc .cap { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); padding: 0 18px 8px; }
+  nav.toc a { display: block; padding: 5px 18px; font-size: 13px; color: var(--text-soft);
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav.toc a:hover { background: var(--accent-bg); color: var(--accent-deep); text-decoration: none; }
+  nav.toc .filters { display: flex; flex-direction: column; gap: 4px; padding: 4px 18px 0; font-size: 13px; color: var(--text-soft); }
+  nav.toc .filters label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+
+  main { padding: 24px 28px 64px; display: flex; flex-direction: column; gap: 14px; }
+  body.hide-tools .ev-tool { display: none; }
+  body.hide-talk .ev-talk { display: none; }
+  body.hide-sub .ev-sub { display: none; }
+
+  /* ── messages ── */
+  .msg { display: flex; gap: 12px; }
+  .msg .avatar { width: 30px; height: 30px; border-radius: 99px; display: flex; align-items: center;
+                 justify-content: center; font-size: 15px; flex-shrink: 0;
+                 background: var(--tool-etc-bg); border: 1px solid var(--border); }
+  .msg.user .avatar { background: var(--accent); border: none; }
+  .msg .body { flex: 1; min-width: 0; }
+  .msg .meta { display: flex; gap: 8px; align-items: baseline; }
+  .msg .who { font-weight: 700; font-size: 13px; color: var(--text-soft); }
+  .msg.user .who { color: var(--accent-deep); }
+  .msg .ts { font-size: 12px; color: var(--muted); }
+  .msg .text { white-space: pre-wrap; overflow-wrap: break-word; }
+  .msg.user .text { background: var(--accent-bg); border: 1px solid var(--accent-border);
+                    border-radius: 4px 12px 12px 12px; padding: 10px 14px; }
+
+  /* ── copy button ── */
+  button.copy { margin-left: auto; border: none; background: none; color: var(--muted);
+                font-size: 12px; cursor: pointer; opacity: .55; font-family: inherit; }
+  button.copy:hover { opacity: 1; color: var(--accent); }
+
+  /* ── tools ── */
+  .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
+  details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
+  details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+                           font-size: 13px; cursor: pointer; list-style: ""; }
+  details.tool > summary::-webkit-details-marker { display: none; }
+  details.tool[open] > summary { border-bottom: 1px solid var(--border-soft); }
+  details.tool > summary .chev::before { content: "◀︎"; color: var(--muted); font-size: 8px; vertical-align: middle; }
+  details.tool[open] > summary .chev::before { content: "▼"; }
+  .tool-badge { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 5px;
+                background: var(--tool-etc-bg); color: var(--tool-etc); white-space: nowrap; }
+  [data-tool="Bash"] .tool-badge { background: var(--tool-bash-bg); color: var(--tool-bash); }
+  [data-tool="Edit"] .tool-badge, [data-tool="Write"] .tool-badge, [data-tool="MultiEdit"] .tool-badge
+    { background: var(--tool-edit-bg); color: var(--tool-edit); }
+  [data-tool="Read"] .tool-badge, [data-tool="Glob"] .tool-badge, [data-tool="Grep"] .tool-badge
+    { background: var(--tool-read-bg); color: var(--tool-read); }
+  details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
+                                overflow: hidden; text-overflow: ellipsis; }
+  details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
+  details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
+  details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
+  details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
+  details.tool pre.diff { background: var(--term-bg); color: var(--term-text); border-bottom: 1px solid var(--border-soft); overflow-x: auto; }
+  details.tool pre.diff :is(.add, .del) { display: inline-block; width: max-content; background-color: var(--_bg);
+                                          border-image: linear-gradient(var(--_bg) 0 0) 0 fill / 1 / 0 100vw; }
+  details.tool pre.diff .add { --_bg: var(--diff-add-bg); color: var(--diff-add); }
+  details.tool pre.diff .del { --_bg: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre .err { color: var(--term-err); }
+  details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
+
+  /* ── skill invocation ── */
+  .skill { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--skill-border);
+           background: var(--skill-bg); color: var(--skill); border-radius: 99px; padding: 2px 12px;
+           font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+  .skill-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .skill-line .path { font-family: var(--mono); font-size: 12px; color: var(--skill); overflow-wrap: anywhere; }
+  .skill-row { margin-left: 42px; }
+  .msg .cmd { font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--accent-deep); }
+  .msg .text .skill-line { margin-top: 8px; }
+
+  /* ── deny ── */
+  .deny { margin-left: 42px; border: 1px solid var(--deny-border); background: var(--deny-bg);
+          border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+  .deny .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .deny .mark { background: var(--deny); color: #fff; font-size: 11px; font-weight: 700;
+                padding: 1px 8px; border-radius: 5px; }
+  .deny code { font-size: 12.5px; color: var(--deny-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; }
+  .deny .copy { cursor: pointer; background: none; border: 1px solid var(--deny-border);
+                border-radius: 4px; font-size: 12px; padding: 0 5px; color: var(--deny-text); }
+  .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
+                     color: var(--deny-text); white-space: pre-wrap; }
+
+  /* ── note ── */
+  .note { display: flex; align-items: center; gap: 10px; color: var(--note); font-size: 12.5px; }
+  .note::before, .note::after { content: ""; flex: 1; height: 1px; background: var(--note-line); }
+
+  /* ── subagent ── */
+  .sub { margin-left: 42px; border: 1px solid var(--sub-border); background: var(--sub-bg);
+         border-radius: 10px; overflow: hidden; }
+  .sub .head { display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+               border-bottom: 1px solid var(--sub-border); font-size: 13px; }
+  .sub .mark { background: var(--sub); color: #fff; font-size: 11px; font-weight: 700;
+               padding: 1px 8px; border-radius: 5px; }
+  .sub .type { color: var(--sub); font-family: var(--mono); font-size: 12px; }
+  .sub .inner { padding: 10px 14px; font-size: 13.5px; }
+  .sub .cap { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--sub); opacity: .8; }
+  .sub .cap + * { margin-bottom: 8px; }
+  .sub details summary { cursor: pointer; color: var(--text-soft); }
+  .sub .body { white-space: pre-wrap; overflow-wrap: break-word; }
+</style>
+<header>
+  <span class="brand">ccrender</span>
+  <h1>{{.ID}} <small>· {{.ProjectPath}} · {{.StartedAt.Format "2006-01-02 15:04"}} 〜 {{if eq (.StartedAt.Format "2006-01-02") (.EndedAt.Format "2006-01-02")}}{{.EndedAt.Format "15:04"}}{{else}}{{.EndedAt.Format "2006-01-02 15:04"}}{{end}}</small></h1>
+  <div class="stats">
+    <span class="u">👤 {{.Stats.UserMessages}}</span>
+    <span>🤖 {{.Stats.AssistantMessages}}</span>
+    <span>🔧 {{.Stats.ToolCalls}}</span>
+    <span class="k">スキル {{.Stats.SkillInvocations}}</span>
+    <span class="d">🚫 {{.Stats.PermissionDenies}}</span>
+    <span class="s">🤝 {{.Stats.SubagentCalls}}</span>
+    {{- if .Models}}
+    <span class="m">{{join ", " .Models}}</span>
+    {{- end}}
+  </div>
+</header>
+<div class="layout">
+<nav class="toc">
+  <div class="cap">タイムライン</div>
+  {{- range $i, $e := .Events}}
+  {{- if eq $e.Kind "user_message"}}
+  <a href="#e{{$i}}">{{$e.Timestamp.Format "15:04"}} {{firstLine $e.Text}}</a>
+  {{- else if and (eq $e.Kind "skill_invocation") $e.Skill $e.Skill.ByUser}}
+  <a href="#e{{$i}}">{{$e.Timestamp.Format "15:04"}} {{$e.Skill.Command}}</a>
+  {{- end}}
+  {{- end}}
+  <div class="cap" style="padding-top:18px">フィルタ</div>
+  <div class="filters">
+    <label><input type="checkbox" checked data-toggle="hide-talk"> 発話</label>
+    <label><input type="checkbox" checked data-toggle="hide-tools"> 🔧 ツール</label>
+    <label><input type="checkbox" checked data-toggle="hide-sub"> 🤝 サブエージェント</label>
+  </div>
+</nav>
+<main>
+{{- range $i, $e := .Events}}
+{{- if eq $e.Kind "user_message"}}
+<div class="msg user ev-talk" id="e{{$i}}">
+  <div class="avatar">👤</div>
+  <div class="body">
+    <div class="meta"><span class="who">あなた</span><span class="ts">{{$e.Timestamp.Format "15:04"}}</span>
+      <button class="copy" title="発話をコピー">⧉ コピー</button></div>
+    <div class="text copy-src">{{$e.Text}}</div>
+  </div>
+</div>
+{{- else if eq $e.Kind "assistant_message"}}
+<div class="msg ev-talk" id="e{{$i}}">
+  <div class="avatar">🤖</div>
+  <div class="body">
+    <div class="meta"><span class="who">Claude</span><span class="ts">{{$e.Timestamp.Format "15:04"}}</span>
+      {{- if $e.Text}}
+      <button class="copy" title="発話をコピー">⧉ コピー</button>
+      {{- end}}</div>
+    {{- if $e.Text}}
+    <div class="text copy-src">{{$e.Text}}</div>
+    {{- end}}
+  </div>
+</div>
+{{- else if eq $e.Kind "tool_call"}}
+<div class="tools ev-tool" id="e{{$i}}" data-tool="{{$e.Tool.Name}}">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 {{$e.Tool.Name}}</span>
+      <code class="copy-src">{{$e.Tool.Summary}}</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    {{- if $e.Tool.Diff}}
+    <pre class="diff">{{$e.Tool.Diff}}</pre>
+    {{- end}}
+    <pre class="input">{{$e.Tool.Input}}</pre>
+    {{- if $e.Tool.HasResult}}
+    <pre class="result">{{$e.Tool.Result}}</pre>
+    {{- else if ne $e.Tool.Name "Read"}}
+    <p class="noresult">(結果なし)</p>
+    {{- end}}
+  </details>
+</div>
+{{- else if eq $e.Kind "permission_deny"}}
+<div class="deny ev-tool" id="e{{$i}}" data-tool="{{$e.Tool.Name}}">
+  <div class="row">
+    <span class="mark">🚫 拒否</span>
+    <span class="tool-badge">{{$e.Tool.Name}}</span>
+    <code class="copy-src">{{$e.Tool.Summary}}</code>
+    <button class="copy" title="コマンド/パスをコピー">⧉</button>
+  </div>
+  {{- if $e.Tool.DenyReason}}
+  <blockquote>{{$e.Tool.DenyReason}}</blockquote>
+  {{- end}}
+</div>
+{{- else if eq $e.Kind "subagent_call"}}
+<div class="sub ev-sub" id="e{{$i}}">
+  <div class="head"><span class="mark">🤝 サブエージェント</span><span class="type">{{$e.Subagent.AgentType}}</span></div>
+  <div class="inner">
+    <div class="cap">依頼</div>
+    <details><summary>{{firstLine $e.Subagent.Prompt}}</summary><div class="body">{{$e.Subagent.Prompt}}</div></details>
+    <div class="cap">最終回答</div>
+    <div class="body">{{$e.Subagent.Answer}}</div>
+  </div>
+</div>
+{{- else if eq $e.Kind "skill_invocation"}}
+{{- if $e.Skill.ByUser}}
+<div class="msg user ev-talk" id="e{{$i}}">
+  <div class="avatar">👤</div>
+  <div class="body">
+    <div class="meta"><span class="who">あなた</span><span class="ts">{{$e.Timestamp.Format "15:04"}}</span></div>
+    <div class="text">
+      <code class="cmd">{{$e.Skill.Command}}</code>
+      <div class="skill-line">
+        <span class="skill">🔧 Skill(<b>{{$e.Skill.Name}}</b>)</span>
+        <span class="path copy-src">{{$e.Skill.Path}}</span>
+        <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+      </div>
+    </div>
+  </div>
+</div>
+{{- else}}
+<div class="skill-row skill-line ev-tool" id="e{{$i}}">
+  <span class="skill">🔧 Skill(<b>{{$e.Skill.Name}}</b>)</span>
+  <span class="path copy-src">{{$e.Skill.Path}}</span>
+  <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
+</div>
+{{- end}}
+{{- else if eq $e.Kind "system_note"}}
+<div class="note" id="e{{$i}}">📍 {{$e.Text}}</div>
+{{- end}}
+{{- end}}
+</main>
+</div>
+<script>
+  // コピー: 最寄りの .copy-src のテキストをクリップボードへ
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button.copy");
+    if (!btn) return;
+    var scope = btn.closest(".skill-line, .body, summary, .msg, .deny");
+    var src = scope && scope.querySelector(".copy-src");
+    var old = btn.textContent;
+    if (src && navigator.clipboard) {
+      navigator.clipboard.writeText(src.textContent.trim()).then(
+        function () {
+          btn.textContent = "✓";
+          setTimeout(function () { btn.textContent = old; }, 900);
+        },
+        function () {
+          btn.textContent = "✗";
+          setTimeout(function () { btn.textContent = old; }, 900);
+        }
+      );
+    } else {
+      btn.textContent = "✗";
+      setTimeout(function () { btn.textContent = old; }, 900);
+    }
+    ev.preventDefault();
+  });
+  // フィルタ: チェックを外すと該当種別を隠す
+  document.querySelectorAll(".filters input").forEach(function (cb) {
+    cb.addEventListener("change", function () {
+      document.body.classList.toggle(cb.dataset.toggle, !cb.checked);
+    });
+  });
+  // 結果のライト整形: diff 行と FAIL/ERROR 行の色付け
+  document.querySelectorAll("pre.result, pre.diff").forEach(function (pre) {
+    var html = pre.innerHTML.split("\n").map(function (line) {
+      var plain = line.replace(/<[^>]*>/g, "");
+      if (/^\+(?!\+\+)/.test(plain)) return '<span class="add">' + line + "</span>";
+      if (/^-(?!--)/.test(plain)) return '<span class="del">' + line + "</span>";
+      if (/^(---? )?(FAIL|ERROR|panic:)/.test(plain)) return '<span class="err">' + line + "</span>";
+      return line;
+    }).join("\n");
+    pre.innerHTML = html;
+  });
+</script>

@@ -1,0 +1,87 @@
+# セッション {{.ID}}
+
+- プロジェクト: {{.ProjectPath}}
+- 期間: {{.StartedAt.Format "2006-01-02 15:04"}} 〜 {{.EndedAt.Format "2006-01-02 15:04"}}
+{{- if .Models}}
+- モデル: {{join ", " .Models}}
+{{- end}}
+- イベント: user {{.Stats.UserMessages}} / assistant {{.Stats.AssistantMessages}} / ツール {{.Stats.ToolCalls}} / 権限拒否 {{.Stats.PermissionDenies}} / サブエージェント {{.Stats.SubagentCalls}} / スキル {{.Stats.SkillInvocations}}
+{{- if .Stats.SkippedLines}}
+- 注意: {{.Stats.SkippedLines}}行をスキップ
+{{- end}}
+{{range .Events}}
+{{- if eq .Kind "user_message"}}
+## 👤 User ({{.Timestamp.Format "15:04"}})
+
+{{.Text}}
+{{else if eq .Kind "assistant_message"}}
+## 🤖 Assistant ({{.Timestamp.Format "15:04"}})
+{{- if .Text}}
+
+{{.Text}}
+{{- end}}
+{{else if eq .Kind "tool_call"}}
+{{- if isMultiline .Tool.Summary}}
+🔧 **{{.Tool.Name}}**
+
+```
+{{.Tool.Summary}}
+```
+{{- else}}
+🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
+{{- end}}
+{{- if .Tool.Diff}}
+
+```diff
+{{.Tool.Diff}}
+```
+{{- end}}
+{{- if .Tool.HasResult}}
+
+```
+{{truncateLines 20 .Tool.Result}}
+```
+{{else if ne .Tool.Name "Read"}}
+
+(結果なし)
+{{end}}
+{{- else if eq .Kind "permission_deny"}}
+{{- if isMultiline .Tool.Summary}}
+🚫 **拒否** {{.Tool.Name}}
+
+```
+{{.Tool.Summary}}
+```
+{{- else}}
+🚫 **拒否** {{.Tool.Name}} — `{{firstLine .Tool.Summary}}`
+{{- end}}
+{{- if .Tool.DenyReason}}
+
+> {{.Tool.DenyReason}}
+{{end}}
+{{- else if eq .Kind "subagent_call"}}
+### 🤝 サブエージェント ({{.Subagent.AgentType}})
+
+**依頼:**
+
+{{.Subagent.Prompt}}
+
+**最終回答:**
+
+{{.Subagent.Answer}}
+{{else if eq .Kind "skill_invocation"}}
+{{- if .Skill.ByUser}}
+## 👤 User ({{.Timestamp.Format "15:04"}})
+
+{{.Skill.Command}}
+
+🔧 Skill({{.Skill.Name}}) `{{.Skill.Path}}`
+{{else}}
+🔧 Skill({{.Skill.Name}}) `{{.Skill.Path}}`
+{{end}}
+{{- else if eq .Kind "system_note"}}
+---
+📍 {{.Text}}
+---
+{{end}}
+{{- end}}
