@@ -236,7 +236,7 @@
     <pre class="input">{{$e.Tool.Input}}</pre>
     {{- if $e.Tool.HasResult}}
     <pre class="result">{{$e.Tool.Result}}</pre>
-    {{- else}}
+    {{- else if ne $e.Tool.Name "Read"}}
     <p class="noresult">(結果なし)</p>
     {{- end}}
   </details>

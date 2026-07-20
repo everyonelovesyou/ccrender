@@ -72,6 +72,20 @@ func TestHTMLFullResultInDetails(t *testing.T) {
 	}
 }
 
+func TestHTMLReadWithoutResultShowsNoNote(t *testing.T) {
+	// 成功した Read は parse 層が結果を落とすため、「(結果なし)」の但し書きを出さない
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: "Read", Summary: "a.txt", Input: "{}"}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "(結果なし)") {
+		t.Error("成功した Read に「(結果なし)」が表示されている")
+	}
+}
+
 func TestHTMLEmptySession(t *testing.T) {
 	var buf bytes.Buffer
 	if err := HTML(&buf, &parse.Session{ID: "empty"}, ""); err != nil {
