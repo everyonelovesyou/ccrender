@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,7 +29,7 @@ func NewClaude() *Claude {
 	return &Claude{Command: "claude", Model: "haiku", Timeout: 120 * time.Second}
 }
 
-var segRE = regexp.MustCompile(`(?m)^<<<CCRENDER-SEG \d+>>>$`)
+var segRE = regexp.MustCompile(`(?m)^<<<CCRENDER-SEG (\d+)>>>$`)
 
 // Translate は全テキストを1回の claude -p 呼び出しにまとめて翻訳する (逐次起動の遅延を避ける)。
 func (c *Claude) Translate(texts []string) ([]string, error) {
@@ -53,18 +54,29 @@ func (c *Claude) Translate(texts []string) ([]string, error) {
 	return splitSegments(string(out), len(texts))
 }
 
-// splitSegments は翻訳出力をマーカーで分割する。数が合わなければエラー (部分成功の混在を避ける)。
+// splitSegments は翻訳出力をマーカーで分割し、マーカー番号どおりのスロットに配置する。
+// 数の不一致・番号の重複・範囲外はエラー (部分成功の混在を避ける)。
 func splitSegments(out string, n int) ([]string, error) {
-	parts := segRE.Split(out, -1)
-	if len(parts) > 0 {
-		parts = parts[1:] // 先頭マーカーより前の前置きを捨てる
-	}
-	if len(parts) != n {
-		return nil, fmt.Errorf("翻訳結果のセグメント数が一致しません (期待 %d、実際 %d)", n, len(parts))
+	ms := segRE.FindAllStringSubmatchIndex(out, -1)
+	if len(ms) != n {
+		return nil, fmt.Errorf("翻訳結果のセグメント数が一致しません (期待 %d、実際 %d)", n, len(ms))
 	}
 	res := make([]string, n)
-	for i, p := range parts {
-		res[i] = strings.TrimSpace(p)
+	seen := make([]bool, n)
+	for i, m := range ms {
+		num, err := strconv.Atoi(out[m[2]:m[3]])
+		if err != nil || num < 1 || num > n {
+			return nil, fmt.Errorf("翻訳結果のセグメント番号 %s が範囲外です (1〜%d)", out[m[2]:m[3]], n)
+		}
+		if seen[num-1] {
+			return nil, fmt.Errorf("翻訳結果のセグメント番号 %d が重複しています", num)
+		}
+		seen[num-1] = true
+		end := len(out)
+		if i+1 < len(ms) {
+			end = ms[i+1][0]
+		}
+		res[num-1] = strings.TrimSpace(out[m[1]:end])
 	}
 	return res, nil
 }

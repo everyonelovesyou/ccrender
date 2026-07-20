@@ -30,6 +30,29 @@ func TestSplitSegmentsCountMismatch(t *testing.T) {
 	}
 }
 
+func TestSplitSegmentsOutOfOrder(t *testing.T) {
+	// マーカー番号が逆順で返っても、番号どおりのスロットに配置する
+	out := "<<<CCRENDER-SEG 2>>>\n訳文2\n<<<CCRENDER-SEG 1>>>\n訳文1\n"
+	got, err := splitSegments(out, 2)
+	if err != nil || got[0] != "訳文1" || got[1] != "訳文2" {
+		t.Fatalf("splitSegments = %+v, %v", got, err)
+	}
+}
+
+func TestSplitSegmentsDuplicateNumber(t *testing.T) {
+	out := "<<<CCRENDER-SEG 1>>>\nx\n<<<CCRENDER-SEG 1>>>\ny\n"
+	if _, err := splitSegments(out, 2); err == nil {
+		t.Fatal("番号重複でエラーにならない")
+	}
+}
+
+func TestSplitSegmentsNumberOutOfRange(t *testing.T) {
+	out := "<<<CCRENDER-SEG 1>>>\nx\n<<<CCRENDER-SEG 3>>>\ny\n"
+	if _, err := splitSegments(out, 2); err == nil {
+		t.Fatal("範囲外の番号でエラーにならない")
+	}
+}
+
 // mockTranslator は Apply のテスト用。
 type mockTranslator struct {
 	got []string
