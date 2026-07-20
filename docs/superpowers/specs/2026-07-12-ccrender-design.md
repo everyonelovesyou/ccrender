@@ -9,6 +9,8 @@ Claude Code トランスクリプト描画ツール
 - 追記: 2026-07-16 描画改善4件を統合 (空アシスタントターンの見出し、複数行 Summary、モデル名統計、パス相対化。PR #3)
 - 追記: 2026-07-18 ツール名を cctx から ccrender にリネーム (PR #4)
 - 追記: 2026-07-18 CLI をサブコマンド形式に再設計 (`--format` / `--stdout` をサブコマンドに畳み込み。PR #5)
+- 追記: 2026-07-20 描画ノイズ除去4件を統合 (ローカル時刻表示、task-notification 除去、bash タグ整形、Read 成功結果の非表示。PR #6)
+- 追記: 2026-07-20 Edit の擬似 unified diff 表示を統合 (`ToolCall.Diff` を追加。PR #7)
 
 ## 目的
 
@@ -151,6 +153,7 @@ type ToolCall struct {
     HasResult  bool   // tool_result との突き合わせに成功したか。false ならテンプレートは「(結果なし)」と表示
     IsError    bool
     DenyReason string // 権限拒否時にユーザーが添えたメッセージ
+    Diff       string // Edit のとき old→new の擬似 unified diff (他ツールは空)
 }
 
 type Subagent struct {
@@ -168,7 +171,10 @@ type Subagent struct {
 ### EventKind (7種)
 
 1. `UserMessage` — ユーザーの発話
-    - `<system-reminder>` ブロック、`<command-name>` などのスキル展開ノイズは除去
+    - `<system-reminder>` ブロック、`<command-name>` などのスキル展開ノイズ、`<task-notification>` (ハーネス注入の通知) は除去
+    - ユーザーのシェル実行 (`!` プレフィックス) はタグを整形して残す:
+      `<bash-input>cmd</bash-input>` → `$ cmd`、`<bash-stdout>` / `<bash-stderr>` はタグを剥がして中身のみ表示。
+      対にならないタグ言及 (本文中の `<bash-input>` への言及のみ等) は変換されない
 2. `AssistantMessage` — アシスタントの発話テキスト (thinking は含めない)。
     テキストが空でも tool_use を伴うターンには空テキストのイベントを発行する
     (見出しの帰属を守るため。「テキストも tool_use 由来の見出しもないターン」だけが新規に見出しを持ち、重複はしない)
@@ -271,6 +277,44 @@ type Subagent struct {
   `skill_invocation` になった Skill tool_use は `ToolCalls` に、ユーザー呼び出し分は `UserMessages` に数えない (二重計上しない)
 - `/clear` などスキル展開を伴わないコマンドエントリは従来どおり非表示
 
+### Edit の差分表示 (擬似 unified diff)
+
+Edit ツールの結果メッセージ (「updated successfully」) だけでは変更内容が失われるため、
+入力 (`old_string` → `new_string`) を擬似 unified diff として要約表示する (PR #7)。
+
+#### スコープ
+
+- 対象は **Edit のみ**。Write / NotebookEdit / MultiEdit は対象外
+  (MultiEdit は `edits` 配列で input の形が異なり、単純な old→new の並置では表現できない。出現時は従来どおり生 JSON 表示)
+- 真の差分計算 (Myers/LCS) は行わず、old 全行に `-`、new 全行に `+` を付けて並べる擬似 diff とする (依存ゼロの維持)
+- 同一ファイルへの連続 Edit を「Edit ×N」と折り畳む案は見送り (イベント列の構造変更を伴うため別件)
+
+#### 構築規則 (internal/parse/diff.go の `editDiff`)
+
+- `old_string` の先頭 `diffMaxLines` (=5) 行を `- `、`new_string` の先頭5行を `+ ` で並べ、超過分は「… (あと N 行)」の1行に畳む
+- 表示条件は `Diff != ""` のみ (専用の bool フラグは持たない)。ツール名が `Edit` のときだけ設定し、既存の `Summary` (ファイルパス) は変えない
+- 行分割: 末尾の改行を1つ落としてから `strings.Split(s, "\n")`。落とした結果が空文字列なら0行 (その側は表示なし)。
+  `""` と `"\n"` は0行、`"\n\n"` は空行2行となり、空行のみの変更も行として表示する
+- 改行コードは LF のみを想定し、CRLF は正規化しない (HTML では `\r` は不可視・色分けは行頭判定のため壊れず、実害は省略行カウントのずれ程度)
+- `replace_all: true` のときは先頭に `(replace_all)` の1行を添える (置換箇所数は input からは分からないため印のみ)
+
+#### 縮退
+
+- `old_string` / `new_string` が両方欠落・両方空、または input JSON が壊れている → `Diff` は空 (表示なし。描画は既存の生 JSON 表示が担保)
+- 片側だけ空 (追加のみ / 削除のみ) → 空でない側だけ表示する
+- 中身が `-` / `+` 始まりでもプレフィックスを機械的に付けるだけなので破綻しない
+
+#### 描画
+
+- HTML: `<pre class="input">` の前に `<pre class="diff">` を追加 (「変更内容 → 結果」の順)。生 JSON の `Input` 表示は従来どおり残す。
+  色分けは既存 JS のライト整形に相乗りし (対象を `pre.result, pre.diff` に拡張)、テンプレート関数は増やさない
+- Markdown: Result のフェンスより前に ` ```diff ` フェンスで出力 (GitHub 等のビューアで赤緑に色づく)
+
+#### テストの注意
+
+golden テストの `fixtureSession()` (markdown_test.go) は parse を通らない手書きの Session リテラルのため、
+再生成だけでは `Diff` が空のままテンプレート追加が検証されない。fixture の Edit ToolCall に `Diff` を設定した上で golden を再生成する。
+
 ## レンダリング仕様
 
 1. ツール結果の扱い
@@ -278,6 +322,8 @@ type Subagent struct {
       (切り詰めはテンプレート関数 `truncateLines` として提供し、行数は自作テンプレート側で変更可能)
     - HTML: 全文を `<details>` の折りたたみに収録し、閉じた状態でサマリー1行を表示
     - `HasResult=false` (tool_result 欠落) は「(結果なし)」と表示
+    - Read の成功結果はファイル内容の再掲にすぎないため表示しない (parse 層で `HasResult=false` / `Result` 空に落とす)。
+      エラー結果 (ファイル不存在など) は従来どおり表示し、md の「(結果なし)」但し書きも Read では出さない
     - 切り詰め対象は `ToolCall.Result` のみ。`Subagent.Prompt` / `Answer` は両形式とも全文
       (HTML では `<details>` 折りたたみ可)
 2. ツール呼び出しの表示
@@ -292,7 +338,9 @@ type Subagent struct {
 3. 権限拒否
     - 明示マーク (例: 🚫 拒否) と `DenyReason` を両形式で必ず表示
     - HTML では複数行の Summary も視覚1行クランプ + 全文コピーボタンで扱う (ツール呼び出しと同方針)
-4. 翻訳 (`--translate`)
+4. 時刻表示
+    - timestamp は UTC 記録のため、`parseTime` で `time.Local` へ変換してから描画する (例: 02:33 UTC → 11:33 JST)
+5. 翻訳 (`--translate`)
     - `claude -p --model haiku` を外部プロセスとして呼び出す。無指定なら原文のまま
     - 対象は `Subagent.Prompt` と `Subagent.Answer` のみ
     - 英語判定はローカルで行わない。
@@ -337,14 +385,13 @@ type Subagent struct {
     - 実トランスクリプト由来の小さな fixture JSONL でイベント抽出をユニットテスト (permission_deny・sidechain・壊れ行・tool_result 欠落を含む)
     - fixture は実ログから転記せず、個人情報を含まない捏造データで作成する (ccmetrics と同方針)
 2. レンダラー
-    - golden file テスト: fixture → 期待される .md / .html と比較
+    - golden file テスト: fixture → 期待される .md / .html と比較。
+      比較が実行環境のタイムゾーンに依存しないよう、render パッケージの `TestMain` で `time.Local` を UTC に固定する
     - 空セッション・発話ゼロ (ツール呼び出しのみ) のセッションでテンプレートが壊れないことを含める
 3. 翻訳
     - `claude -p` はインターフェースで抽象化しモックでテスト (実呼び出しはテスト対象外)
 
 ## リポジトリ構成
-
-`~/Personal/develop/ccrender`
 
 ```
 ccrender/
