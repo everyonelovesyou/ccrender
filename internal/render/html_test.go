@@ -73,20 +73,6 @@ func TestHTMLFullResultInDetails(t *testing.T) {
 	}
 }
 
-func TestHTMLReadWithoutResultShowsNoNote(t *testing.T) {
-	// 成功した Read は parse 層が結果を落とすため、「(結果なし)」の但し書きを出さない
-	s := &parse.Session{ID: "x", Events: []parse.Event{
-		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: "Read", Summary: "a.txt", Input: "{}"}},
-	}}
-	var buf bytes.Buffer
-	if err := HTML(&buf, s, ""); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(buf.String(), "(結果なし)") {
-		t.Error("成功した Read に「(結果なし)」が表示されている")
-	}
-}
-
 func TestHTMLCrossDayEndedAtShowsDate(t *testing.T) {
 	// 日をまたぐセッションでは終了側にも日付を出す
 	s := &parse.Session{ID: "x", StartedAt: ts(t, "23:50")}
@@ -278,6 +264,65 @@ func TestHTMLPermissionDenyWithoutDiff(t *testing.T) {
 	block := extractBlock(buf.String(), `<div class="deny`)
 	if strings.Contains(block, `class="diff"`) {
 		t.Errorf("Diff が空なのに diff が描画されている:\n%s", block)
+	}
+}
+
+func TestHTMLSuccessResultOmittedForFileTools(t *testing.T) {
+	for _, name := range []string{"Read", "Edit", "Write"} {
+		t.Run(name, func(t *testing.T) {
+			s := &parse.Session{ID: "x", Events: []parse.Event{
+				{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+					Name: name, Summary: "/tmp/a.txt", Input: "{}",
+					HasResult: true, Result: "更新に成功しましたという定型文",
+				}},
+			}}
+			var buf bytes.Buffer
+			if err := HTML(&buf, s, ""); err != nil {
+				t.Fatal(err)
+			}
+			block := extractBlock(buf.String(), `<div class="tools`)
+			if strings.Contains(block, `<pre class="result">`) {
+				t.Errorf("%s の成功結果が描画されている:\n%s", name, block)
+			}
+			if strings.Contains(block, "noresult") {
+				t.Errorf("%s に「(結果なし)」が描画されている:\n%s", name, block)
+			}
+		})
+	}
+}
+
+func TestHTMLErrorResultShownForFileTools(t *testing.T) {
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Edit", Summary: "/tmp/a.txt", Input: "{}",
+			HasResult: true, IsError: true, Result: "String to replace not found",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "String to replace not found") {
+		t.Errorf("Edit の失敗結果が描画されていない:\n%s", buf.String())
+	}
+}
+
+func TestHTMLMissingResultShowsNote(t *testing.T) {
+	for _, name := range []string{"Bash", "Read", "Edit"} {
+		t.Run(name, func(t *testing.T) {
+			s := &parse.Session{ID: "x", Events: []parse.Event{
+				{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+					Name: name, Summary: "x", Input: "{}", HasResult: false,
+				}},
+			}}
+			var buf bytes.Buffer
+			if err := HTML(&buf, s, ""); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(buf.String(), `class="noresult"`) {
+				t.Errorf("%s: 結果が欠けているのに注記がない:\n%s", name, buf.String())
+			}
+		})
 	}
 }
 

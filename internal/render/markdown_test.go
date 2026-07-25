@@ -41,8 +41,14 @@ func fixtureSession() *parse.Session {
 				Prompt: "Please investigate.", Answer: "Investigation summary.",
 			}},
 			{Kind: parse.KindSystemNote, Timestamp: at(5), Text: "コンテキスト圧縮 (compact)"},
+			// 結果が本当に欠けている Read: ツール名によらず「(結果なし)」を出す
 			{Kind: parse.KindToolCall, Timestamp: at(6), Tool: &parse.ToolCall{
 				Name: "Read", Summary: "/tmp/y.txt", Input: "{}", HasResult: false,
+			}},
+			// 成功した Read: 結果はファイル内容の再掲なので描画しない
+			{Kind: parse.KindToolCall, Timestamp: at(6), Tool: &parse.ToolCall{
+				Name: "Read", Summary: "/tmp/z.txt", Input: "{}",
+				HasResult: true, Result: "1\tpackage main",
 			}},
 			{Kind: parse.KindSkillInvocation, Timestamp: at(7), Skill: &parse.SkillInvocation{
 				Name: "ohayou", Path: "/Users/example/.claude/skills/ohayou",
@@ -78,7 +84,7 @@ func fixtureSession() *parse.Session {
 			}},
 		},
 		Stats: parse.Stats{
-			UserMessages: 1, AssistantMessages: 2, ToolCalls: 5,
+			UserMessages: 1, AssistantMessages: 2, ToolCalls: 6,
 			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1,
 			SkillInvocations: 2, SkippedLines: 1,
 		},
@@ -117,28 +123,6 @@ func TestMarkdownToolOnlySession(t *testing.T) {
 }
 
 // Read の内容は意図的に非表示のため、「(結果なし)」の但し書きも出さない
-func TestMarkdownReadShowsNoResultNote(t *testing.T) {
-	toolEvent := func(name string) parse.Event {
-		return parse.Event{Kind: parse.KindToolCall, Tool: &parse.ToolCall{Name: name, Summary: "/a.go"}}
-	}
-	s := &parse.Session{ID: "s", ProjectPath: "/p", Events: []parse.Event{toolEvent("Read")}}
-	var buf bytes.Buffer
-	if err := Markdown(&buf, s, ""); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(buf.String(), "(結果なし)") {
-		t.Errorf("Read に「(結果なし)」が表示される:\n%s", buf.String())
-	}
-	s.Events = []parse.Event{toolEvent("Grep")}
-	buf.Reset()
-	if err := Markdown(&buf, s, ""); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(buf.String(), "(結果なし)") {
-		t.Errorf("Read 以外の「(結果なし)」まで消えた:\n%s", buf.String())
-	}
-}
-
 func TestMarkdownBadOverrideTemplate(t *testing.T) {
 	dir := t.TempDir()
 	bad := dir + "/bad.tmpl"
@@ -225,6 +209,73 @@ func TestMarkdownPermissionDenyWithoutDiff(t *testing.T) {
 	}}
 	if out := renderMarkdown(t, s); strings.Contains(out, "```diff") {
 		t.Errorf("Diff が空なのに diff フェンスが描画されている:\n%s", out)
+	}
+}
+
+// Read / Edit / Write の成功結果は定型文の再掲にすぎないため描画しない。
+func TestMarkdownSuccessResultOmittedForFileTools(t *testing.T) {
+	for _, name := range []string{"Read", "Edit", "Write"} {
+		t.Run(name, func(t *testing.T) {
+			s := &parse.Session{ID: "x", Events: []parse.Event{
+				{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+					Name: name, Summary: "/tmp/a.txt", Input: "{}",
+					HasResult: true, Result: "更新に成功しましたという定型文",
+				}},
+			}}
+			out := renderMarkdown(t, s)
+			if strings.Contains(out, "更新に成功しましたという定型文") {
+				t.Errorf("%s の成功結果が描画されている:\n%s", name, out)
+			}
+			// 意図して省いたのであって、結果が欠けているわけではない
+			if strings.Contains(out, "(結果なし)") {
+				t.Errorf("%s に「(結果なし)」が描画されている:\n%s", name, out)
+			}
+		})
+	}
+}
+
+// 結果ブロックを省いても、次のイベントとの間の空行は保つ (見出しがフェンスに続いてしまう)。
+func TestMarkdownOmittedResultKeepsBlankLine(t *testing.T) {
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+			Name: "Edit", Summary: "/tmp/a.txt", Input: "{}", HasResult: true, Result: "定型文",
+		}},
+		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+			Name: "Bash", Summary: "ls", Input: "{}", HasResult: true, Result: "out",
+		}},
+	}}
+	out := renderMarkdown(t, s)
+	if !strings.Contains(out, "`/tmp/a.txt`\n\n🔧 **Bash**") {
+		t.Errorf("結果を省いたツールの後に空行がない:\n%q", out)
+	}
+}
+
+// 失敗時は原因が読みたいので結果を残す。
+func TestMarkdownErrorResultShownForFileTools(t *testing.T) {
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+			Name: "Edit", Summary: "/tmp/a.txt", Input: "{}",
+			HasResult: true, IsError: true, Result: "String to replace not found",
+		}},
+	}}
+	if out := renderMarkdown(t, s); !strings.Contains(out, "String to replace not found") {
+		t.Errorf("Edit の失敗結果が描画されていない:\n%s", out)
+	}
+}
+
+// 結果が本当に欠けている場合は、ツール名によらず「(結果なし)」を出す。
+func TestMarkdownMissingResultShowsNote(t *testing.T) {
+	for _, name := range []string{"Bash", "Read", "Edit"} {
+		t.Run(name, func(t *testing.T) {
+			s := &parse.Session{ID: "x", Events: []parse.Event{
+				{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+					Name: name, Summary: "x", Input: "{}", HasResult: false,
+				}},
+			}}
+			if out := renderMarkdown(t, s); !strings.Contains(out, "(結果なし)") {
+				t.Errorf("%s: 結果が欠けているのに注記がない:\n%s", name, out)
+			}
+		})
 	}
 }
 

@@ -103,8 +103,8 @@ func TestToolSummary(t *testing.T) {
 	}
 }
 
-// Read の成功結果はファイル内容の再掲にすぎず表示不要。エラーは残す
-func TestReadResultHidden(t *testing.T) {
+// 結果を描画するかは render 層の判断 (ShowsResult)。parse は成功・失敗どちらも保持する
+func TestReadResultRetained(t *testing.T) {
 	jsonl := `{"type":"assistant","sessionId":"s1","timestamp":"2026-07-18T00:00:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"r1","name":"Read","input":{"file_path":"/a.go"}},{"type":"tool_use","id":"r2","name":"Read","input":{"file_path":"/b.go"}}]}}` + "\n" +
 		`{"type":"user","sessionId":"s1","timestamp":"2026-07-18T00:00:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"r1","content":"1\tpackage main"},{"type":"tool_result","tool_use_id":"r2","is_error":true,"content":"File does not exist."}]}}` + "\n"
 	s := parseString(t, jsonl)
@@ -112,8 +112,8 @@ func TestReadResultHidden(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("ToolCall %d件: %+v", len(got), got)
 	}
-	if got[0].Tool.HasResult || got[0].Tool.Result != "" {
-		t.Errorf("Read 成功結果が表示対象のまま: %+v", got[0].Tool)
+	if !got[0].Tool.HasResult || got[0].Tool.Result != "1\tpackage main" {
+		t.Errorf("Read 成功結果が parse 層で捨てられている: %+v", got[0].Tool)
 	}
 	if !got[1].Tool.HasResult || !got[1].Tool.IsError {
 		t.Errorf("Read エラー結果は残すべき: %+v", got[1].Tool)

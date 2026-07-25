@@ -239,9 +239,9 @@
     <pre class="diff">{{$e.Tool.Diff}}</pre>
     {{- end}}
     <pre class="input">{{$e.Tool.Input}}</pre>
-    {{- if $e.Tool.HasResult}}
+    {{- if showsResult $e.Tool}}
     <pre class="result">{{$e.Tool.Result}}</pre>
-    {{- else if ne $e.Tool.Name "Read"}}
+    {{- else if not $e.Tool.HasResult}}
     <p class="noresult">(結果なし)</p>
     {{- end}}
   </details>

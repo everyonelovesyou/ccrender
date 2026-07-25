@@ -176,7 +176,7 @@
   <div class="stats">
     <span class="u">👤 1</span>
     <span>🤖 2</span>
-    <span>🔧 5</span>
+    <span>🔧 6</span>
     <span class="k">スキル 2</span>
     <span class="d">🚫 1</span>
     <span class="s">🤝 1</span>
@@ -187,7 +187,7 @@
 <nav class="toc">
   <div class="cap">タイムライン</div>
   <a href="#e0">00:00 こんにちは</a>
-  <a href="#e7">00:00 /ohayou 今日も</a>
+  <a href="#e8">00:00 /ohayou 今日も</a>
   <div class="cap" style="padding-top:18px">フィルタ</div>
   <div class="filters">
     <label><input type="checkbox" checked data-toggle="hide-talk"> 発話</label>
@@ -280,9 +280,21 @@
       <span class="chev"></span>
     </summary>
     <pre class="input">{}</pre>
+    <p class="noresult">(結果なし)</p>
   </details>
 </div>
-<div class="msg user ev-talk" id="e7">
+<div class="tools ev-tool" id="e7" data-tool="Read">
+  <details class="tool">
+    <summary>
+      <span class="tool-badge">🔧 Read</span>
+      <code class="copy-src">/tmp/z.txt</code>
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+      <span class="chev"></span>
+    </summary>
+    <pre class="input">{}</pre>
+  </details>
+</div>
+<div class="msg user ev-talk" id="e8">
   <div class="avatar">👤</div>
   <div class="body">
     <div class="meta"><span class="who">あなた</span><span class="ts">00:00</span></div>
@@ -296,18 +308,18 @@
     </div>
   </div>
 </div>
-<div class="skill-row skill-line ev-tool" id="e8">
+<div class="skill-row skill-line ev-tool" id="e9">
   <span class="skill">🔧 Skill(<b>superpowers:brainstorming</b>)</span>
   <span class="path copy-src">/Users/example/plug/skills/brainstorming</span>
   <button class="copy" title="パスをコピー" style="margin-left: 0">⧉</button>
 </div>
-<div class="msg ev-talk" id="e9">
+<div class="msg ev-talk" id="e10">
   <div class="avatar">🤖</div>
   <div class="body">
     <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span></div>
   </div>
 </div>
-<div class="tools ev-tool" id="e10" data-tool="Edit">
+<div class="tools ev-tool" id="e11" data-tool="Edit">
   <details class="tool">
     <summary>
       <span class="tool-badge">🔧 Edit</span>
@@ -320,10 +332,9 @@
     <pre class="input">{
   &#34;file_path&#34;: &#34;internal/render/render.go&#34;
 }</pre>
-    <pre class="result">ok</pre>
   </details>
 </div>
-<div class="tools ev-tool" id="e11" data-tool="Write">
+<div class="tools ev-tool" id="e12" data-tool="Write">
   <details class="tool">
     <summary>
       <span class="tool-badge">🔧 Write</span>
@@ -337,10 +348,9 @@
     <pre class="input">{
   &#34;file_path&#34;: &#34;internal/render/new.go&#34;
 }</pre>
-    <pre class="result">File created successfully at: internal/render/new.go</pre>
   </details>
 </div>
-<div class="msg ev-talk" id="e12">
+<div class="msg ev-talk" id="e13">
   <div class="avatar">🤖</div>
   <div class="body">
     <div class="meta"><span class="who">Claude</span><span class="ts">00:00</span>
@@ -348,7 +358,7 @@
     <div class="text copy-src">コミットします</div>
   </div>
 </div>
-<div class="tools ev-tool" id="e13" data-tool="Bash">
+<div class="tools ev-tool" id="e14" data-tool="Bash">
   <details class="tool">
     <summary>
       <span class="tool-badge">🔧 Bash</span>

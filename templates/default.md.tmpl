@@ -36,14 +36,15 @@
 {{.Tool.Diff}}
 ```
 {{- end}}
-{{- if .Tool.HasResult}}
+{{- if showsResult .Tool}}
 
 ```
 {{truncateLines 20 .Tool.Result}}
 ```
-{{else if ne .Tool.Name "Read"}}
+{{else if not .Tool.HasResult}}
 
 (結果なし)
+{{else}}
 {{end}}
 {{- else if eq .Kind "permission_deny"}}
 {{- if isMultiline .Tool.Summary}}

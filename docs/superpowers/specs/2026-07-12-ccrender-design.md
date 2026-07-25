@@ -167,6 +167,10 @@ type Subagent struct {
 - ツール結果の20行切り詰め (Markdown) と「サブエージェント回答は要約せず埋め込む」は
   `ToolCall.Result` と `Subagent.Answer` という別フィールドに分かれるため矛盾しない。
   テンプレートは `Result` にのみ `truncateLines` を適用する
+- `Read` / `Edit` / `Write` の**成功**結果は「更新しました」等の定型文かファイル内容の再掲にすぎず描画しない
+  (実データ168件を確認し、内容の抜粋を含む例はなかった)。失敗時は原因が読みたいので残す。
+  判定は render 層のテンプレート関数 `showsResult` が担い、parse は結果を握りつぶさず保持する。
+  これにより「意図して省いた」と「結果が本当に欠けている」を区別でき、後者にのみ「(結果なし)」を出せる
 
 ### EventKind (7種)
 
@@ -364,7 +368,8 @@ golden テストの `fixtureSession()` (markdown_test.go) は parse を通らな
 - デフォルトテンプレートは `go:embed` でバイナリに同梱。
   `--template-md` / `--template-html` で外部ファイルに差し替え可能
 - テンプレートに渡るのは `Session` 構造体そのもの。README に変数一覧を記載
-- テンプレート関数: `truncateLines` (先頭N行切り詰め + 省略行数付記)、`firstLine` (HTML の `<details>` サマリー用)
+- テンプレート関数: `truncateLines` (先頭N行切り詰め + 省略行数付記)、`firstLine` (HTML の `<details>` サマリー用)、
+  `showsResult` (結果ブロックを描画するかの判定)
 - Markdown 出力 (`text/template`) はエスケープしない。発話中の ``` 等が出力構造を壊し得るが、
   AI向け用途では許容する (既知の制限として README に記載)
 - デフォルト HTML: 1ファイル完結 (CSS 埋め込み・外部依存なし)。発話は色分けのチャット風、

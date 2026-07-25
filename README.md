@@ -189,6 +189,7 @@ ccrender stdout abc123 | pbcopy
 | `firstLine` | `firstLine s` | 文字列 `s` の先頭1行を返す (HTML の `<details>` サマリー用) |
 | `join` | `join sep ss` | 文字列スライス `ss` を `sep` で連結する。パイプ記法では `{{join ", " .Models}}` のように使う |
 | `isMultiline` | `isMultiline s` | 文字列 `s` が複数行かを返す。ツール要約 (`Tool.Summary`) の全文表示分岐に使う |
+| `showsResult` | `showsResult tc` | `ToolCall` の結果ブロックを描画すべきかを返す。`Read` / `Edit` / `Write` の**成功**結果は定型文の再掲にすぎないため `false` (失敗時は `true`)。`{{if showsResult .Tool}}` のように使う |
 
 ### `--template-md` / `--template-html` による差し替え例
 

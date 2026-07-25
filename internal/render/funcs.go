@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+
+	"github.com/everyonelovesyou/ccrender/internal/parse"
 )
 
 // TruncateLines は s を先頭 n 行に切り詰め、省略行数を付記する。
@@ -35,6 +37,25 @@ func IsMultiline(s string) bool {
 	return strings.ContainsRune(s, '\n')
 }
 
+// ShowsResult は結果ブロックを描画すべきかを返す。
+// Read / Edit / Write の成功結果は「更新しました」等の定型文かファイル内容の再掲にすぎず
+// 読む価値がないため描画しない。失敗時は原因が読みたいので残す。
+// 「結果が欠けている」ことの表明 (「(結果なし)」) は HasResult が false のときだけなので、
+// ここで false を返しても注記は出ない。
+func ShowsResult(tc *parse.ToolCall) bool {
+	if !tc.HasResult {
+		return false
+	}
+	if tc.IsError {
+		return true
+	}
+	switch tc.Name {
+	case "Read", "Edit", "Write":
+		return false
+	}
+	return true
+}
+
 // Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
 func Funcs() template.FuncMap {
 	return template.FuncMap{
@@ -42,5 +63,6 @@ func Funcs() template.FuncMap {
 		"firstLine":     FirstLine,
 		"join":          Join,
 		"isMultiline":   IsMultiline,
+		"showsResult":   ShowsResult,
 	}
 }

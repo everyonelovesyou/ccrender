@@ -175,9 +175,9 @@ func TestRunEndToEnd(t *testing.T) {
 			t.Errorf("md に %q がない", want)
 		}
 	}
-	// fixture 中で結果が無いのは Read (tu4) のみで、Read は但し書きも出さない
-	if bytes.Contains(md, []byte("(結果なし)")) {
-		t.Error("Read に「(結果なし)」が表示されている")
+	// fixture 中で結果が無いのは Read (tu4) のみ。ツール名によらず但し書きを出す
+	if !bytes.Contains(md, []byte("(結果なし)")) {
+		t.Error("結果が欠けている Read に「(結果なし)」が表示されていない")
 	}
 	if bytes.Contains(md, []byte("現れてはならない")) {
 		t.Error("スキル展開本文が md に漏れている")
