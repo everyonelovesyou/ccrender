@@ -67,7 +67,7 @@ Investigation summary.
 
 (結果なし)
 
-🔧 **Read** — `/tmp/z.txt`
+🔧 **Read** — `/tmp/z.txt` (L 17〜46)
 
 ## 👤 User (00:00)
 

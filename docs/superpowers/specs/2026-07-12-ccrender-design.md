@@ -11,6 +11,7 @@ Claude Code トランスクリプト描画ツール
 - 追記: 2026-07-18 CLI をサブコマンド形式に再設計 (`--format` / `--stdout` をサブコマンドに畳み込み。PR #5)
 - 追記: 2026-07-20 描画ノイズ除去4件を統合 (ローカル時刻表示、task-notification 除去、bash タグ整形、Read 成功結果の非表示。PR #6)
 - 追記: 2026-07-20 Edit の擬似 unified diff 表示を統合 (`ToolCall.Diff` を追加。PR #7)
+- 追記: 2026-07-25 描画の間引き4件を統合 (拒否 Edit の diff 表示、Write の擬似 diff、Read/Edit/Write の成功結果の非表示、Read の Input 非表示と `ToolCall.Range` の追加)
 
 ## 目的
 
@@ -154,6 +155,7 @@ type ToolCall struct {
     IsError    bool
     DenyReason string // 権限拒否時にユーザーが添えたメッセージ
     Diff       string // Edit のとき old→new の擬似 unified diff (他ツールは空)
+    Range      string // Read のとき読み取り範囲 (「L 17〜46」など。範囲指定なし・他ツールは空)
 }
 
 type Subagent struct {
@@ -171,6 +173,10 @@ type Subagent struct {
   (実データ168件を確認し、内容の抜粋を含む例はなかった)。失敗時は原因が読みたいので残す。
   判定は render 層のテンプレート関数 `showsResult` が担い、parse は結果を握りつぶさず保持する。
   これにより「意図して省いた」と「結果が本当に欠けている」を区別でき、後者にのみ「(結果なし)」を出せる
+- `Read` の `Input` も描画しない。実データ 4,727件のうち 76.6% は `file_path` のみで `Summary` と完全に重複し、
+  残る 23.4% も `offset` / `limit` だけだった。判定は `showsResult` と対になる `showsInput` (render 層) が担う。
+  読み取り範囲は捨てずに `Range` へ畳んで要約の傍らに出す。`Summary` に混ぜないのは、HTML では要約が
+  パスのコピー元 (`copy-src`) を兼ねており、範囲を含めるとコピーしたパスがそのままでは開けなくなるため
 
 ### EventKind (7種)
 

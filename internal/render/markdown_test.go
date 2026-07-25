@@ -45,9 +45,11 @@ func fixtureSession() *parse.Session {
 			{Kind: parse.KindToolCall, Timestamp: at(6), Tool: &parse.ToolCall{
 				Name: "Read", Summary: "/tmp/y.txt", Input: "{}", HasResult: false,
 			}},
-			// 成功した Read: 結果はファイル内容の再掲なので描画しない
+			// 成功した Read: 結果はファイル内容の再掲なので描画しない。
+			// 読み取り範囲は Input ブロックではなく Range として要約の傍らに表示する。
 			{Kind: parse.KindToolCall, Timestamp: at(6), Tool: &parse.ToolCall{
-				Name: "Read", Summary: "/tmp/z.txt", Input: "{}",
+				Name: "Read", Summary: "/tmp/z.txt", Range: "L 17〜46",
+				Input:     "{\n  \"file_path\": \"/tmp/z.txt\",\n  \"offset\": 17,\n  \"limit\": 30\n}",
 				HasResult: true, Result: "1\tpackage main",
 			}},
 			{Kind: parse.KindSkillInvocation, Timestamp: at(7), Skill: &parse.SkillInvocation{
@@ -213,6 +215,22 @@ func TestMarkdownPermissionDenyWithoutDiff(t *testing.T) {
 }
 
 // Read / Edit / Write の成功結果は定型文の再掲にすぎないため描画しない。
+func TestMarkdownReadRange(t *testing.T) {
+	// 読み取り範囲は要約の外、コードスパンの後ろに置く
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Tool: &parse.ToolCall{
+			Name: "Read", Summary: "/proj/a.go", Range: "L 17〜46",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := Markdown(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "`/proj/a.go` (L 17〜46)") {
+		t.Errorf("読み取り範囲が描画されていない:\n%s", buf.String())
+	}
+}
+
 func TestMarkdownSuccessResultOmittedForFileTools(t *testing.T) {
 	for _, name := range []string{"Read", "Edit", "Write"} {
 		t.Run(name, func(t *testing.T) {

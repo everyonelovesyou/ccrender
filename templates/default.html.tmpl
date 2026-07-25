@@ -113,6 +113,7 @@
     { background: var(--tool-read-bg); color: var(--tool-read); }
   details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
                                 overflow: hidden; text-overflow: ellipsis; }
+  details.tool > summary .range { flex: none; font-size: 11px; color: var(--muted); }
   details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
   details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
@@ -232,13 +233,18 @@
     <summary>
       <span class="tool-badge">🔧 {{$e.Tool.Name}}</span>
       <code class="copy-src">{{$e.Tool.Summary}}</code>
+      {{- if $e.Tool.Range}}
+      <span class="range">({{$e.Tool.Range}})</span>
+      {{- end}}
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
     {{- if $e.Tool.Diff}}
     <pre class="diff">{{$e.Tool.Diff}}</pre>
     {{- end}}
+    {{- if showsInput $e.Tool}}
     <pre class="input">{{$e.Tool.Input}}</pre>
+    {{- end}}
     {{- if showsResult $e.Tool}}
     <pre class="result">{{$e.Tool.Result}}</pre>
     {{- else if not $e.Tool.HasResult}}

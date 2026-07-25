@@ -56,6 +56,13 @@ func ShowsResult(tc *parse.ToolCall) bool {
 	return true
 }
 
+// ShowsInput は入力ブロックを描画すべきかを返す。
+// Read の Input は大半が file_path のみで要約と重複し、残りの offset / limit も
+// 要約へ畳んである (parse.readRange) ため描画しない。
+func ShowsInput(tc *parse.ToolCall) bool {
+	return tc.Name != "Read"
+}
+
 // Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
 func Funcs() template.FuncMap {
 	return template.FuncMap{
@@ -64,5 +71,6 @@ func Funcs() template.FuncMap {
 		"join":          Join,
 		"isMultiline":   IsMultiline,
 		"showsResult":   ShowsResult,
+		"showsInput":    ShowsInput,
 	}
 }

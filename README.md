@@ -154,6 +154,7 @@ ccrender stdout abc123 | pbcopy
 | `IsError` | `bool` | 結果がエラーだったか |
 | `DenyReason` | `string` | 権限拒否時にユーザーが添えたメッセージ |
 | `Diff` | `string` | `Edit` のとき `old_string` → `new_string` の擬似 unified diff (先頭5行ずつ + 省略行)。他ツールは空 |
+| `Range` | `string` | `Read` のとき `offset` / `limit` から組み立てた読み取り範囲 (`L 17〜46` / `L 1〜30` / `L 105〜`)。範囲指定なし・他ツールは空 |
 
 ### Subagent
 
@@ -190,6 +191,7 @@ ccrender stdout abc123 | pbcopy
 | `join` | `join sep ss` | 文字列スライス `ss` を `sep` で連結する。パイプ記法では `{{join ", " .Models}}` のように使う |
 | `isMultiline` | `isMultiline s` | 文字列 `s` が複数行かを返す。ツール要約 (`Tool.Summary`) の全文表示分岐に使う |
 | `showsResult` | `showsResult tc` | `ToolCall` の結果ブロックを描画すべきかを返す。`Read` / `Edit` / `Write` の**成功**結果は定型文の再掲にすぎないため `false` (失敗時は `true`)。`{{if showsResult .Tool}}` のように使う |
+| `showsInput` | `showsInput tc` | `ToolCall` の入力ブロックを描画すべきかを返す。`Read` の `Input` は `Summary` (パス) と `Range` で尽きるため `false`。`{{if showsInput .Tool}}` のように使う |
 
 ### `--template-md` / `--template-html` による差し替え例
 

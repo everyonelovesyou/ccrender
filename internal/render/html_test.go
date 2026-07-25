@@ -291,6 +291,79 @@ func TestHTMLSuccessResultOmittedForFileTools(t *testing.T) {
 	}
 }
 
+func TestHTMLInputOmittedForRead(t *testing.T) {
+	// Read の Input は file_path だけで要約と重複する。読み取り範囲は Range が持つので描画しない
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Read", Summary: "a.go", Range: "L 17〜46",
+			Input: "{\n  \"file_path\": \"/proj/a.go\",\n  \"offset\": 17\n}",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if strings.Contains(block, `<pre class="input">`) {
+		t.Errorf("Read の Input が描画されている:\n%s", block)
+	}
+	if !strings.Contains(block, "L 17〜46") {
+		t.Errorf("読み取り範囲が描画されていない:\n%s", block)
+	}
+}
+
+func TestHTMLReadRangeOutsideCopyTarget(t *testing.T) {
+	// パスのコピーを濁さないよう、読み取り範囲は copy-src の外側に置く
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Read", Summary: "/proj/a.go", Range: "L 17〜46",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if !strings.Contains(block, `<code class="copy-src">/proj/a.go</code>`) {
+		t.Errorf("コピー対象がパス単体になっていない:\n%s", block)
+	}
+}
+
+func TestHTMLNoRangeElementWhenAbsent(t *testing.T) {
+	// 範囲指定のない Read では空の要素を出さない
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Read", Summary: "/proj/a.go",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if strings.Contains(block, `class="range"`) {
+		t.Errorf("Range が空なのに要素が描画されている:\n%s", block)
+	}
+}
+
+func TestHTMLInputShownForOtherTools(t *testing.T) {
+	// Read 以外は Input に要約へ出ないパラメータが載るため従来どおり描画する
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Grep", Summary: "foo",
+			Input: "{\n  \"pattern\": \"foo\",\n  \"glob\": \"*.go\"\n}",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if !strings.Contains(block, `<pre class="input">`) {
+		t.Errorf("Grep の Input が描画されていない:\n%s", block)
+	}
+}
+
 func TestHTMLErrorResultShownForFileTools(t *testing.T) {
 	s := &parse.Session{ID: "x", Events: []parse.Event{
 		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{

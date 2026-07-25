@@ -28,7 +28,7 @@
 {{.Tool.Summary}}
 ```
 {{- else}}
-🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`
+🔧 **{{.Tool.Name}}** — `{{firstLine .Tool.Summary}}`{{if .Tool.Range}} ({{.Tool.Range}}){{end}}
 {{- end}}
 {{- if .Tool.Diff}}
 

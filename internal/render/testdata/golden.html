@@ -113,6 +113,7 @@
     { background: var(--tool-read-bg); color: var(--tool-read); }
   details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
                                 overflow: hidden; text-overflow: ellipsis; }
+  details.tool > summary .range { flex: none; font-size: 11px; color: var(--muted); }
   details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
   details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
@@ -279,7 +280,6 @@
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
-    <pre class="input">{}</pre>
     <p class="noresult">(結果なし)</p>
   </details>
 </div>
@@ -288,10 +288,10 @@
     <summary>
       <span class="tool-badge">🔧 Read</span>
       <code class="copy-src">/tmp/z.txt</code>
+      <span class="range">(L 17〜46)</span>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
-    <pre class="input">{}</pre>
   </details>
 </div>
 <div class="msg user ev-talk" id="e8">
