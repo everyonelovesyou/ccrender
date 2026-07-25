@@ -192,6 +192,7 @@ ccrender stdout abc123 | pbcopy
 | `isMultiline` | `isMultiline s` | 文字列 `s` が複数行かを返す。ツール要約 (`Tool.Summary`) の全文表示分岐に使う |
 | `showsResult` | `showsResult tc` | `ToolCall` の結果ブロックを描画すべきかを返す。`Read` / `Edit` / `Write` の**成功**結果は定型文の再掲にすぎないため `false` (失敗時は `true`)。`{{if showsResult .Tool}}` のように使う |
 | `showsInput` | `showsInput tc` | `ToolCall` の入力ブロックを描画すべきかを返す。`Read` の `Input` は `Summary` (パス) と `Range` で尽きるため `false`。`{{if showsInput .Tool}}` のように使う |
+| `hasBody` | `hasBody tc` | `ToolCall` が折りたたむ中身 (diff / 入力 / 結果) を持つかを返す。HTML はこれが `false` の行を `<details>` にせず1行の `<div>` で出す |
 
 ### `--template-md` / `--template-html` による差し替え例
 

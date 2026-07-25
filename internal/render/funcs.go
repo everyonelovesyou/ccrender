@@ -63,6 +63,14 @@ func ShowsInput(tc *parse.ToolCall) bool {
 	return tc.Name != "Read"
 }
 
+// HasBody は折りたたみの中身を持つかを返す。
+// 中身が空になるのは Input も結果も描画しない成功した Read だけだが、
+// 「(結果なし)」の一行しか持たない行も畳む値がないため中身とは数えない
+// (この注記は HTML では見出し行の脇に出す)。
+func HasBody(tc *parse.ToolCall) bool {
+	return tc.Diff != "" || ShowsInput(tc) || ShowsResult(tc)
+}
+
 // Funcs はテンプレートへ渡す関数群。README の変数一覧と同期させる。
 func Funcs() template.FuncMap {
 	return template.FuncMap{
@@ -72,5 +80,6 @@ func Funcs() template.FuncMap {
 		"isMultiline":   IsMultiline,
 		"showsResult":   ShowsResult,
 		"showsInput":    ShowsInput,
+		"hasBody":       HasBody,
 	}
 }

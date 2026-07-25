@@ -177,6 +177,11 @@ type Subagent struct {
   残る 23.4% も `offset` / `limit` だけだった。判定は `showsResult` と対になる `showsInput` (render 層) が担う。
   読み取り範囲は捨てずに `Range` へ畳んで要約の傍らに出す。`Summary` に混ぜないのは、HTML では要約が
   パスのコピー元 (`copy-src`) を兼ねており、範囲を含めるとコピーしたパスがそのままでは開けなくなるため
+- 上記の結果、HTML では中身のない `<details>` が生じうる (成功した Read)。`hasBody` が false の行は
+  `<details>` ではなく1行の `<div class="tool">` として出し、開閉記号も付けない。「(結果なし)」しか
+  持たない行も畳む値がないため同様に扱い、注記は見出し行の脇に出す。
+  見出し行は `{{define "toolmeta"}}` で共有し、`<summary>` / `<div>` の双方に `.toolhead` を付ける
+  (コピーボタンの探索範囲が `<summary>` を名指ししているため、クラスで拾えるようにする)
 
 ### EventKind (7種)
 

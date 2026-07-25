@@ -364,6 +364,102 @@ func TestHTMLInputShownForOtherTools(t *testing.T) {
 	}
 }
 
+func TestHTMLEmptyToolNotCollapsible(t *testing.T) {
+	// 中身が何もないツール行 (成功した Read) は折りたたまず 1行の div で出す
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Read", Summary: "a.go", Range: "L 17〜46",
+			Input: "{}", HasResult: true, Result: "1\tpackage main",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if strings.Contains(block, "<details") {
+		t.Errorf("中身のないツール行が折りたたみになっている:\n%s", block)
+	}
+	if !strings.Contains(block, `<div class="tool">`) {
+		t.Errorf("div のツール行になっていない:\n%s", block)
+	}
+	// 開けない行に開閉記号を残さない
+	if strings.Contains(block, `class="chev"`) {
+		t.Errorf("開けない行に開閉記号が描画されている:\n%s", block)
+	}
+	// 要約・範囲・コピーボタンは折りたたみ時と同じく出す
+	if !strings.Contains(block, `<code class="copy-src">a.go</code>`) ||
+		!strings.Contains(block, "L 17〜46") ||
+		!strings.Contains(block, `<button class="copy"`) {
+		t.Errorf("見出し行の中身が欠けている:\n%s", block)
+	}
+}
+
+func TestHTMLNoResultShownInline(t *testing.T) {
+	// 「(結果なし)」だけの行も折りたたまず、注記を見出し行の脇に出す
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Read", Summary: "a.go", HasResult: false,
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="tools`)
+	if strings.Contains(block, "<details") {
+		t.Errorf("「(結果なし)」だけの行が折りたたみになっている:\n%s", block)
+	}
+	if !strings.Contains(block, `<span class="noresult">(結果なし)</span>`) {
+		t.Errorf("注記が見出し行の脇に出ていない:\n%s", block)
+	}
+}
+
+func TestHTMLToolWithBodyStaysCollapsible(t *testing.T) {
+	// 中身を持つ行は従来どおり折りたたむ
+	cases := map[string]*parse.ToolCall{
+		"失敗した Read": {Name: "Read", Summary: "a.go", HasResult: true, IsError: true, Result: "File does not exist."},
+		"入力を持つ Bash": {Name: "Bash", Summary: "ls", Input: "{\n  \"command\": \"ls\"\n}", HasResult: true, Result: "a.go"},
+		"diff を持つ Edit": {Name: "Edit", Summary: "a.go", Input: "{}", Diff: "- x\n+ y", HasResult: true, Result: "ok"},
+		"結果を持たない Bash": {Name: "Bash", Summary: "ls", Input: "{\n  \"command\": \"ls\"\n}", HasResult: false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			s := &parse.Session{ID: "x", Events: []parse.Event{
+				{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: tc},
+			}}
+			var buf bytes.Buffer
+			if err := HTML(&buf, s, ""); err != nil {
+				t.Fatal(err)
+			}
+			block := extractBlock(buf.String(), `<div class="tools`)
+			if !strings.Contains(block, "<details") {
+				t.Errorf("中身があるのに折りたたみになっていない:\n%s", block)
+			}
+		})
+	}
+}
+
+func TestHTMLCopyScopeCoversToolHead(t *testing.T) {
+	// 折りたたまない行では summary が無くなるため、コピー対象の探索範囲に見出し行が要る
+	var buf bytes.Buffer
+	if err := HTML(&buf, fixtureSession(), ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	scopeStart := strings.Index(out, `btn.closest(`)
+	if scopeStart < 0 {
+		t.Fatal("コピー対象の探索処理が見つからない")
+	}
+	scopeEnd := strings.Index(out[scopeStart:], ");")
+	if scopeEnd < 0 {
+		t.Fatal("コピー対象の探索式を取得できない")
+	}
+	if !strings.Contains(out[scopeStart:scopeStart+scopeEnd], ".toolhead") {
+		t.Error("コピー対象の探索範囲にツール見出し行が含まれていない")
+	}
+}
+
 func TestHTMLErrorResultShownForFileTools(t *testing.T) {
 	s := &parse.Session{ID: "x", Events: []parse.Event{
 		{Kind: parse.KindToolCall, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{

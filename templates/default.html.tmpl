@@ -97,9 +97,10 @@
 
   /* ── tools ── */
   .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
-  details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
-  details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
-                           font-size: 13px; cursor: pointer; list-style: ""; }
+  .tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
+  .toolhead { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+              font-size: 13px; list-style: ""; }
+  details.tool > summary.toolhead { cursor: pointer; }
   details.tool > summary::-webkit-details-marker { display: none; }
   details.tool[open] > summary { border-bottom: 1px solid var(--border-soft); }
   details.tool > summary .chev::before { content: "◀︎"; color: var(--muted); font-size: 8px; vertical-align: middle; }
@@ -111,16 +112,17 @@
     { background: var(--tool-edit-bg); color: var(--tool-edit); }
   [data-tool="Read"] .tool-badge, [data-tool="Glob"] .tool-badge, [data-tool="Grep"] .tool-badge
     { background: var(--tool-read-bg); color: var(--tool-read); }
-  details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
-                                overflow: hidden; text-overflow: ellipsis; }
-  details.tool > summary .range { flex: none; font-size: 11px; color: var(--muted); }
+  .toolhead code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
+                   overflow: hidden; text-overflow: ellipsis; }
+  .toolhead .range { flex: none; font-size: 11px; color: var(--muted); }
+  .toolhead .noresult { flex: none; font-size: 11px; color: var(--faint); }
   details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
   details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
   details.tool pre.diff { border-bottom: 1px solid var(--border-soft); }
   details.tool pre .err { color: var(--term-err); }
-  details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
+  details.tool > .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
   /* ── diff (ツール詳細と拒否ブロックの双方で使う) ── */
   pre.diff { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6;
@@ -229,13 +231,10 @@
 </div>
 {{- else if eq $e.Kind "tool_call"}}
 <div class="tools ev-tool" id="e{{$i}}" data-tool="{{$e.Tool.Name}}">
+  {{- if hasBody $e.Tool}}
   <details class="tool">
-    <summary>
-      <span class="tool-badge">🔧 {{$e.Tool.Name}}</span>
-      <code class="copy-src">{{$e.Tool.Summary}}</code>
-      {{- if $e.Tool.Range}}
-      <span class="range">({{$e.Tool.Range}})</span>
-      {{- end}}
+    <summary class="toolhead">
+      {{- template "toolmeta" $e.Tool}}
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
       <span class="chev"></span>
     </summary>
@@ -251,6 +250,17 @@
     <p class="noresult">(結果なし)</p>
     {{- end}}
   </details>
+  {{- else}}
+  <div class="tool">
+    <div class="toolhead">
+      {{- template "toolmeta" $e.Tool}}
+      {{- if not $e.Tool.HasResult}}
+      <span class="noresult">(結果なし)</span>
+      {{- end}}
+      <button class="copy" title="コマンド/パスをコピー">⧉</button>
+    </div>
+  </div>
+  {{- end}}
 </div>
 {{- else if eq $e.Kind "permission_deny"}}
 <div class="deny ev-tool" id="e{{$i}}" data-tool="{{$e.Tool.Name}}">
@@ -311,7 +321,7 @@
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("button.copy");
     if (!btn) return;
-    var scope = btn.closest(".skill-line, .body, summary, .msg, .deny");
+    var scope = btn.closest(".skill-line, .body, .toolhead, .msg, .deny");
     var src = scope && scope.querySelector(".copy-src");
     var old = btn.textContent;
     if (src && navigator.clipboard) {
@@ -349,3 +359,10 @@
     pre.innerHTML = html;
   });
 </script>
+{{- define "toolmeta"}}
+      <span class="tool-badge">🔧 {{.Name}}</span>
+      <code class="copy-src">{{.Summary}}</code>
+      {{- if .Range}}
+      <span class="range">({{.Range}})</span>
+      {{- end}}
+{{- end}}

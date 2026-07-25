@@ -97,9 +97,10 @@
 
    
   .tools { display: flex; flex-direction: column; gap: 4px; margin-left: 42px; }
-  details.tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
-  details.tool > summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
-                           font-size: 13px; cursor: pointer; list-style: ""; }
+  .tool { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
+  .toolhead { display: flex; align-items: center; gap: 8px; padding: 5px 10px;
+              font-size: 13px; list-style: ""; }
+  details.tool > summary.toolhead { cursor: pointer; }
   details.tool > summary::-webkit-details-marker { display: none; }
   details.tool[open] > summary { border-bottom: 1px solid var(--border-soft); }
   details.tool > summary .chev::before { content: "◀︎"; color: var(--muted); font-size: 8px; vertical-align: middle; }
@@ -111,16 +112,17 @@
     { background: var(--tool-edit-bg); color: var(--tool-edit); }
   [data-tool="Read"] .tool-badge, [data-tool="Glob"] .tool-badge, [data-tool="Grep"] .tool-badge
     { background: var(--tool-read-bg); color: var(--tool-read); }
-  details.tool > summary code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
-                                overflow: hidden; text-overflow: ellipsis; }
-  details.tool > summary .range { flex: none; font-size: 11px; color: var(--muted); }
+  .toolhead code { font-size: 12.5px; color: var(--text-soft); white-space: nowrap;
+                   overflow: hidden; text-overflow: ellipsis; }
+  .toolhead .range { flex: none; font-size: 11px; color: var(--muted); }
+  .toolhead .noresult { flex: none; font-size: 11px; color: var(--faint); }
   details.tool pre { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6; }
   details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
   details.tool pre.diff { border-bottom: 1px solid var(--border-soft); }
   details.tool pre .err { color: var(--term-err); }
-  details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
+  details.tool > .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
 
    
   pre.diff { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6;
@@ -215,7 +217,7 @@
 </div>
 <div class="tools ev-tool" id="e2" data-tool="Bash">
   <details class="tool">
-    <summary>
+    <summary class="toolhead">
       <span class="tool-badge">🔧 Bash</span>
       <code class="copy-src">seq 1 25</code>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
@@ -273,26 +275,24 @@
 </div>
 <div class="note" id="e5">📍 コンテキスト圧縮 (compact)</div>
 <div class="tools ev-tool" id="e6" data-tool="Read">
-  <details class="tool">
-    <summary>
+  <div class="tool">
+    <div class="toolhead">
       <span class="tool-badge">🔧 Read</span>
       <code class="copy-src">/tmp/y.txt</code>
+      <span class="noresult">(結果なし)</span>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
-      <span class="chev"></span>
-    </summary>
-    <p class="noresult">(結果なし)</p>
-  </details>
+    </div>
+  </div>
 </div>
 <div class="tools ev-tool" id="e7" data-tool="Read">
-  <details class="tool">
-    <summary>
+  <div class="tool">
+    <div class="toolhead">
       <span class="tool-badge">🔧 Read</span>
       <code class="copy-src">/tmp/z.txt</code>
       <span class="range">(L 17〜46)</span>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
-      <span class="chev"></span>
-    </summary>
-  </details>
+    </div>
+  </div>
 </div>
 <div class="msg user ev-talk" id="e8">
   <div class="avatar">👤</div>
@@ -321,7 +321,7 @@
 </div>
 <div class="tools ev-tool" id="e11" data-tool="Edit">
   <details class="tool">
-    <summary>
+    <summary class="toolhead">
       <span class="tool-badge">🔧 Edit</span>
       <code class="copy-src">internal/render/render.go</code>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
@@ -336,7 +336,7 @@
 </div>
 <div class="tools ev-tool" id="e12" data-tool="Write">
   <details class="tool">
-    <summary>
+    <summary class="toolhead">
       <span class="tool-badge">🔧 Write</span>
       <code class="copy-src">internal/render/new.go</code>
       <button class="copy" title="コマンド/パスをコピー">⧉</button>
@@ -360,7 +360,7 @@
 </div>
 <div class="tools ev-tool" id="e14" data-tool="Bash">
   <details class="tool">
-    <summary>
+    <summary class="toolhead">
       <span class="tool-badge">🔧 Bash</span>
       <code class="copy-src">git commit -m &#34;$(cat &lt;&lt;&#39;EOF&#39;
 feat: 変更
@@ -382,7 +382,7 @@ EOF
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("button.copy");
     if (!btn) return;
-    var scope = btn.closest(".skill-line, .body, summary, .msg, .deny");
+    var scope = btn.closest(".skill-line, .body, .toolhead, .msg, .deny");
     var src = scope && scope.querySelector(".copy-src");
     var old = btn.textContent;
     if (src && navigator.clipboard) {
