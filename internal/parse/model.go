@@ -56,6 +56,7 @@ type ToolCall struct {
 	IsError    bool
 	DenyReason string // 権限拒否時にユーザーが添えたメッセージ (無ければ空)
 	Diff       string // Edit のとき old→new の擬似 unified diff (他ツールは空)
+	Range      string // Read のとき読み取り範囲 (「L 17〜46」など。範囲指定なし・他ツールは空)
 }
 
 type Subagent struct {

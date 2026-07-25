@@ -26,6 +26,27 @@ func TestToolEventSetsWriteDiff(t *testing.T) {
 	}
 }
 
+func TestToolEventSetsReadRange(t *testing.T) {
+	newEvent := func(name, input string) Event {
+		return toolEvent(
+			contentBlock{Type: "tool_use", ID: "tu-x", Name: name, Input: json.RawMessage(input)},
+			time.Time{}, "/proj", map[string]contentBlock{}, map[string]Subagent{}, skillIndex{}, io.Discard,
+		)
+	}
+	read := newEvent("Read", `{"file_path":"/proj/a.go","offset":17,"limit":30}`)
+	if read.Tool.Range != "L 17〜46" {
+		t.Errorf("Read の Range が設定されていない: %q", read.Tool.Range)
+	}
+	// Range は Summary と独立している (パスのコピーを濁さない)
+	if read.Tool.Summary != "a.go" {
+		t.Errorf("Summary に範囲が混ざっている: %q", read.Tool.Summary)
+	}
+	whole := newEvent("Read", `{"file_path":"/proj/a.go"}`)
+	if whole.Tool.Range != "" {
+		t.Errorf("範囲指定のない Read に Range が設定されている: %q", whole.Tool.Range)
+	}
+}
+
 func TestToolCallMatched(t *testing.T) {
 	s := mustParse(t)
 	got := eventsOfKind(s, KindToolCall)
@@ -95,10 +116,37 @@ func TestToolSummary(t *testing.T) {
 		{name: "Bash", input: `{"command":"cat /proj/internal/a.go"}`, root: "/proj", want: "cat /proj/internal/a.go"},
 		{name: "Grep", input: `{"path":"/proj/internal"}`, root: "/proj", want: "internal"},
 		{name: "Edit", input: `{"file_path":"/proj"}`, root: "/proj", want: "/proj"},
+		// 読み取り範囲は Summary ではなく Range が持つ (パスのコピーを濁さないため)
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":17,"limit":30}`, root: "", want: "/a/c.go"},
 	}
 	for _, c := range cases {
 		if got := toolSummary(c.name, json.RawMessage(c.input), c.root); got != c.want {
 			t.Errorf("toolSummary(%s) = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestToolRange(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":17,"limit":30}`, want: "L 17〜46"},
+		{name: "Read", input: `{"file_path":"/a/c.go","limit":30}`, want: "L 1〜30"},
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":105}`, want: "L 105〜"},
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":1,"limit":30}`, want: "L 1〜30"},
+		// 範囲として意味をなさない値は付記しない
+		{name: "Read", input: `{"file_path":"/a/c.go"}`, want: ""},
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":0,"limit":0}`, want: ""},
+		{name: "Read", input: `{"file_path":"/a/c.go","offset":-3}`, want: ""},
+		{name: "Read", input: `壊れた JSON`, want: ""},
+		// 範囲を持つのは Read だけ (他ツールの同名キーには反応しない)
+		{name: "Edit", input: `{"file_path":"/a/c.go","offset":17,"limit":30}`, want: ""},
+	}
+	for _, c := range cases {
+		if got := toolRange(c.name, json.RawMessage(c.input)); got != c.want {
+			t.Errorf("toolRange(%s, %s) = %q, want %q", c.name, c.input, got, c.want)
 		}
 	}
 }

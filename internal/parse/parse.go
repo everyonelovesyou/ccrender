@@ -158,6 +158,7 @@ func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[str
 	tc := &ToolCall{
 		Name:    b.Name,
 		Summary: toolSummary(b.Name, b.Input, projectRoot),
+		Range:   toolRange(b.Name, b.Input),
 		Input:   formatInput(b.Input),
 	}
 	switch b.Name {

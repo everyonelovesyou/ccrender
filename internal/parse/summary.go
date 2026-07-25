@@ -2,6 +2,7 @@ package parse
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -42,6 +43,37 @@ func toolSummary(name string, input json.RawMessage, projectRoot string) string 
 			s = relToRoot(projectRoot, s)
 		}
 		return s
+	}
+	return ""
+}
+
+// toolRange は Read の offset / limit を「L 17〜46」のような読み取り範囲の表示へ変換する。
+// Read 以外・範囲指定なしのときは空文字を返す。Read の Input ブロックは描画しないため、
+// 「ファイルのどこを読んだか」を伝える機会はここだけになる。
+// Summary とは別フィールドに置く: 要約はパスのコピー元でもあり、範囲を混ぜると濁るため。
+func toolRange(name string, input json.RawMessage) string {
+	if name != "Read" {
+		return ""
+	}
+	var m map[string]any
+	_ = json.Unmarshal(input, &m)
+	num := func(k string) int {
+		f, ok := m[k].(float64) // JSON の数値は float64 で入る
+		if !ok || f < 1 {
+			return 0 // 未指定・0・負値はいずれも「指定なし」として扱う
+		}
+		return int(f)
+	}
+	offset, limit := num("offset"), num("limit")
+	start := offset
+	if start == 0 {
+		start = 1 // offset 未指定は先頭から
+	}
+	switch {
+	case limit > 0:
+		return fmt.Sprintf("L %d〜%d", start, start+limit-1)
+	case start > 1:
+		return fmt.Sprintf("L %d〜", start)
 	}
 	return ""
 }
