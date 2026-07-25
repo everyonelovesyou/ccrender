@@ -33,6 +33,7 @@ func fixtureSession() *parse.Session {
 			}},
 			{Kind: parse.KindPermissionDeny, Timestamp: at(3), Tool: &parse.ToolCall{
 				Name: "Edit", Summary: "/tmp/x.txt", IsError: true, HasResult: true,
+				Diff:       "- old line\n+ new line",
 				DenyReason: "こっちは触らないで",
 			}},
 			{Kind: parse.KindSubagentCall, Timestamp: at(4), Subagent: &parse.Subagent{
@@ -184,6 +185,39 @@ func TestMarkdownMultilineCommand(t *testing.T) {
 	out := renderMarkdown(t, s)
 	if !strings.Contains(out, "feat: 変更") {
 		t.Error("複数行コマンドの2行目以降が出力されていない")
+	}
+}
+
+func TestMarkdownPermissionDenyShowsDiff(t *testing.T) {
+	// 「何を拒否されたか」が一番見たい情報なので、拒否された Edit でも diff を描画する
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindPermissionDeny, Tool: &parse.ToolCall{
+			Name:       "Edit",
+			Summary:    "/tmp/x.txt",
+			Diff:       "- 消される行\n+ 足される行",
+			IsError:    true,
+			HasResult:  true,
+			DenyReason: "こっちは触らないで",
+		}},
+	}}
+	out := renderMarkdown(t, s)
+	if !strings.Contains(out, "```diff") {
+		t.Errorf("拒否ブロックに diff フェンスがない:\n%s", out)
+	}
+	if !strings.Contains(out, "- 消される行") || !strings.Contains(out, "+ 足される行") {
+		t.Errorf("diff の中身が描画されていない:\n%s", out)
+	}
+}
+
+func TestMarkdownPermissionDenyWithoutDiff(t *testing.T) {
+	// Edit 以外の拒否では Diff が空なので、空のフェンスを出さない
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindPermissionDeny, Tool: &parse.ToolCall{
+			Name: "Bash", Summary: "rm -rf /", IsError: true, HasResult: true,
+		}},
+	}}
+	if out := renderMarkdown(t, s); strings.Contains(out, "```diff") {
+		t.Errorf("Diff が空なのに diff フェンスが描画されている:\n%s", out)
 	}
 }
 

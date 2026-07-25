@@ -117,13 +117,17 @@
   details.tool pre:not(.diff) { white-space: pre-wrap; overflow-wrap: break-word; }
   details.tool pre.input { background: var(--panel); color: var(--text-soft); border-bottom: 1px solid var(--border-soft); }
   details.tool pre.result { background: var(--term-bg); color: var(--term-text); }
-  details.tool pre.diff { background: var(--term-bg); color: var(--term-text); border-bottom: 1px solid var(--border-soft); overflow-x: auto; }
-  details.tool pre.diff :is(.add, .del) { display: inline-block; width: max-content; background-color: var(--_bg);
-                                          border-image: linear-gradient(var(--_bg) 0 0) 0 fill / 1 / 0 100vw; }
-  details.tool pre.diff .add { --_bg: var(--diff-add-bg); color: var(--diff-add); }
-  details.tool pre.diff .del { --_bg: var(--diff-del-bg); color: var(--diff-del); }
+  details.tool pre.diff { border-bottom: 1px solid var(--border-soft); }
   details.tool pre .err { color: var(--term-err); }
   details.tool .noresult { padding: 6px 14px; color: var(--faint); font-size: 12.5px; margin: 0; }
+
+   
+  pre.diff { margin: 0; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+             background: var(--term-bg); color: var(--term-text); overflow-x: auto; }
+  pre.diff :is(.add, .del) { display: inline-block; width: max-content; background-color: var(--_bg);
+                             border-image: linear-gradient(var(--_bg) 0 0) 0 fill / 1 / 0 100vw; }
+  pre.diff .add { --_bg: var(--diff-add-bg); color: var(--diff-add); }
+  pre.diff .del { --_bg: var(--diff-del-bg); color: var(--diff-del); }
 
    
   .skill { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--skill-border);
@@ -144,6 +148,7 @@
   .deny code { font-size: 12.5px; color: var(--deny-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60ch; }
   .deny .copy { cursor: pointer; background: none; border: 1px solid var(--deny-border);
                 border-radius: 4px; font-size: 12px; padding: 0 5px; color: var(--deny-text); }
+  .deny pre.diff { margin: 8px 0 0; border-radius: 6px; }
   .deny blockquote { margin: 6px 0 0; padding-left: 10px; border-left: 3px solid var(--deny-border);
                      color: var(--deny-text); white-space: pre-wrap; }
 
@@ -252,6 +257,8 @@
     <code class="copy-src">/tmp/x.txt</code>
     <button class="copy" title="コマンド/パスをコピー">⧉</button>
   </div>
+  <pre class="diff">- old line
+&#43; new line</pre>
   <blockquote>こっちは触らないで</blockquote>
 </div>
 <div class="sub ev-sub" id="e4">

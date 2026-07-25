@@ -2,6 +2,7 @@ package render
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -224,6 +225,59 @@ func TestHTMLPermissionDenyMultilineSummary(t *testing.T) {
 	scopeExpression := script[scopeStart : scopeStart+scopeEnd]
 	if !strings.Contains(scopeExpression, ".deny") {
 		t.Error("コピー対象の探索範囲に .deny が含まれていない")
+	}
+}
+
+func TestHTMLPermissionDenyShowsDiff(t *testing.T) {
+	// 「何を拒否されたか」が一番見たい情報なので、拒否された Edit でも diff を描画する
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindPermissionDeny, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name:       "Edit",
+			Summary:    "/tmp/x.txt",
+			Diff:       "- 消される行\n+ 足される行",
+			IsError:    true,
+			HasResult:  true,
+			DenyReason: "こっちは触らないで",
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	block := extractBlock(out, `<div class="deny`)
+	if block == "" {
+		t.Fatal("deny ブロックが見つからない")
+	}
+	if !strings.Contains(block, `<pre class="diff">`) {
+		t.Errorf("拒否ブロックに diff が描画されていない:\n%s", block)
+	}
+	// html/template は "+" を &#43; へエスケープする (tool_call 側の diff と同じ表現)
+	if !strings.Contains(block, "- 消される行") || !strings.Contains(block, "&#43; 足される行") {
+		t.Errorf("diff の中身が描画されていない:\n%s", block)
+	}
+
+	// 拒否ブロックは <details> ではないため、diff の装飾が details.tool 配下に
+	// 限定されていると色が付かないまま出力される
+	if !regexp.MustCompile(`(?m)^\s*pre\.diff\b`).MatchString(out) {
+		t.Error("diff の装飾が details.tool 配下に限定されており、拒否ブロックに適用されない")
+	}
+}
+
+func TestHTMLPermissionDenyWithoutDiff(t *testing.T) {
+	// Edit 以外の拒否では Diff が空なので、空の pre を出さない
+	s := &parse.Session{ID: "x", Events: []parse.Event{
+		{Kind: parse.KindPermissionDeny, Timestamp: ts(t, "10:00"), Tool: &parse.ToolCall{
+			Name: "Bash", Summary: "rm -rf /", IsError: true, HasResult: true,
+		}},
+	}}
+	var buf bytes.Buffer
+	if err := HTML(&buf, s, ""); err != nil {
+		t.Fatal(err)
+	}
+	block := extractBlock(buf.String(), `<div class="deny`)
+	if strings.Contains(block, `class="diff"`) {
+		t.Errorf("Diff が空なのに diff が描画されている:\n%s", block)
 	}
 }
 

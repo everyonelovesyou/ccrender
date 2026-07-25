@@ -309,6 +309,11 @@ Edit ツールの結果メッセージ (「updated successfully」) だけでは
 - HTML: `<pre class="input">` の前に `<pre class="diff">` を追加 (「変更内容 → 結果」の順)。生 JSON の `Input` 表示は従来どおり残す。
   色分けは既存 JS のライト整形に相乗りし (対象を `pre.result, pre.diff` に拡張)、テンプレート関数は増やさない
 - Markdown: Result のフェンスより前に ` ```diff ` フェンスで出力 (GitHub 等のビューアで赤緑に色づく)
+- **権限拒否された Edit でも描画する**。拒否された変更内容こそ読み手が一番見たい情報であり、`Diff` は
+  `KindPermissionDeny` のイベントにも同じ `ToolCall` として渡っている (parse 層は分岐しない)。
+  HTML は `.deny` ブロック内の Summary 行と `DenyReason` の間、Markdown も同じ位置に置く
+- diff の装飾規則は `details.tool` 配下に限定せず `pre.diff` を基点に定義する。拒否ブロックは `<details>` ではないため、
+  スコープを限定すると色が付かないまま出力される。`details.tool pre.diff` は下線、`.deny pre.diff` は余白と角丸のみを上書きする
 
 #### テストの注意
 

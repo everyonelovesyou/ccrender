@@ -42,6 +42,11 @@
 
 🚫 **拒否** Edit — `/tmp/x.txt`
 
+```diff
+- old line
++ new line
+```
+
 > こっちは触らないで
 
 ### 🤝 サブエージェント (general-purpose)
