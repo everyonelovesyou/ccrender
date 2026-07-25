@@ -160,8 +160,11 @@ func toolEvent(b contentBlock, ts time.Time, projectRoot string, results map[str
 		Summary: toolSummary(b.Name, b.Input, projectRoot),
 		Input:   formatInput(b.Input),
 	}
-	if b.Name == "Edit" {
+	switch b.Name {
+	case "Edit":
 		tc.Diff = editDiff(b.Input)
+	case "Write":
+		tc.Diff = writeDiff(b.Input)
 	}
 	kind := KindToolCall
 	if res, ok := results[b.ID]; ok {

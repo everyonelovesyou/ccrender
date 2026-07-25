@@ -90,3 +90,69 @@ func TestEditDiff(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteDiff(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "通常: content の全行に + を付ける",
+			input: `{"file_path":"a.go","content":"foo\nbar"}`,
+			want:  "+ foo\n+ bar",
+		},
+		{
+			name:  "1行",
+			input: `{"content":"hello"}`,
+			want:  "+ hello",
+		},
+		{
+			name:  "境界値: ちょうど10行は省略なし",
+			input: `{"content":"1\n2\n3\n4\n5\n6\n7\n8\n9\n10"}`,
+			want:  "+ 1\n+ 2\n+ 3\n+ 4\n+ 5\n+ 6\n+ 7\n+ 8\n+ 9\n+ 10",
+		},
+		{
+			name:  "省略: 11行目以降は「… (あと N 行)」に畳む",
+			input: `{"content":"1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12"}`,
+			want:  "+ 1\n+ 2\n+ 3\n+ 4\n+ 5\n+ 6\n+ 7\n+ 8\n+ 9\n+ 10\n… (あと 2 行)",
+		},
+		{
+			name:  "末尾改行: 1つだけ落として行数を数える",
+			input: `{"content":"a\n"}`,
+			want:  "+ a",
+		},
+		{
+			name:  "境界値: 改行1つだけの文字列は0行",
+			input: `{"content":"\n"}`,
+			want:  "",
+		},
+		{
+			name:  "空 content: Diff なし",
+			input: `{"file_path":"a.go","content":""}`,
+			want:  "",
+		},
+		{
+			name:  "content 欠落: Diff なし",
+			input: `{"file_path":"a.go"}`,
+			want:  "",
+		},
+		{
+			name:  "壊れた JSON: 黙って空を返す",
+			input: `{"content": broken`,
+			want:  "",
+		},
+		{
+			name:  "中身が + 始まりでも機械的に前置するだけ",
+			input: `{"content":"+ item"}`,
+			want:  "+ + item",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := writeDiff(json.RawMessage(c.input)); got != c.want {
+				t.Errorf("writeDiff() = %q, want %q", got, c.want)
+			}
+		})
+	}
+}

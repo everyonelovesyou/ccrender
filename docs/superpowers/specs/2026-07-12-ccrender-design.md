@@ -284,14 +284,17 @@ Edit ツールの結果メッセージ (「updated successfully」) だけでは
 
 #### スコープ
 
-- 対象は **Edit のみ**。Write / NotebookEdit / MultiEdit は対象外
+- 対象は **Edit と Write**。NotebookEdit / MultiEdit は対象外
   (MultiEdit は `edits` 配列で input の形が異なり、単純な old→new の並置では表現できない。出現時は従来どおり生 JSON 表示)
+- Write は書き込む内容しか持たないため、`content` の全行を追加側 (`+`) として並べる片側だけの擬似 diff とする
 - 真の差分計算 (Myers/LCS) は行わず、old 全行に `-`、new 全行に `+` を付けて並べる擬似 diff とする (依存ゼロの維持)
 - 同一ファイルへの連続 Edit を「Edit ×N」と折り畳む案は見送り (イベント列の構造変更を伴うため別件)
 
 #### 構築規則 (internal/parse/diff.go の `editDiff`)
 
-- `old_string` の先頭 `diffMaxLines` (=5) 行を `- `、`new_string` の先頭5行を `+ ` で並べ、超過分は「… (あと N 行)」の1行に畳む
+- Edit: `old_string` の先頭 `diffMaxLines` (=5) 行を `- `、`new_string` の先頭5行を `+ ` で並べ、超過分は「… (あと N 行)」の1行に畳む
+- Write: `content` の先頭 `writeMaxLines` (=10) 行を `+ ` で並べ、超過分は同じ省略行に畳む。
+  追加側しか持たないため、上限は Edit の両側合計 (最大10行) と分量を揃えた値にする
 - 表示条件は `Diff != ""` のみ (専用の bool フラグは持たない)。ツール名が `Edit` のときだけ設定し、既存の `Summary` (ファイルパス) は変えない
 - 行分割: 末尾の改行を1つ落としてから `strings.Split(s, "\n")`。落とした結果が空文字列なら0行 (その側は表示なし)。
   `""` と `"\n"` は0行、`"\n\n"` は空行2行となり、空行のみの変更も行として表示する

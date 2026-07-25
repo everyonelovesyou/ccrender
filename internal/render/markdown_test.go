@@ -61,6 +61,13 @@ func fixtureSession() *parse.Session {
 				Diff:      "- foo\n+ bar",
 				HasResult: true, Result: "ok",
 			}},
+			// Write は追加側だけの擬似 diff になる
+			{Kind: parse.KindToolCall, Timestamp: at(9), Tool: &parse.ToolCall{
+				Name: "Write", Summary: "internal/render/new.go",
+				Input:     "{\n  \"file_path\": \"internal/render/new.go\"\n}",
+				Diff:      "+ package render\n+ \n+ // 新しいファイル",
+				HasResult: true, Result: "File created successfully at: internal/render/new.go",
+			}},
 			// heredoc を含む複数行 Bash: フェンス全文 (md) / 全文 copy-src (html) で表示される。
 			{Kind: parse.KindAssistantMessage, Timestamp: at(10), Text: "コミットします"},
 			{Kind: parse.KindToolCall, Timestamp: at(11), Tool: &parse.ToolCall{
@@ -71,7 +78,7 @@ func fixtureSession() *parse.Session {
 			}},
 		},
 		Stats: parse.Stats{
-			UserMessages: 1, AssistantMessages: 2, ToolCalls: 4,
+			UserMessages: 1, AssistantMessages: 2, ToolCalls: 5,
 			PermissionDenies: 1, SystemNotes: 1, SubagentCalls: 1,
 			SkillInvocations: 2, SkippedLines: 1,
 		},

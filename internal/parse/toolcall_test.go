@@ -2,9 +2,29 @@ package parse
 
 import (
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestToolEventSetsWriteDiff(t *testing.T) {
+	newEvent := func(name, input string) Event {
+		return toolEvent(
+			contentBlock{Type: "tool_use", ID: "tu-x", Name: name, Input: json.RawMessage(input)},
+			time.Time{}, "", map[string]contentBlock{}, map[string]Subagent{}, skillIndex{}, io.Discard,
+		)
+	}
+	write := newEvent("Write", `{"file_path":"/tmp/a.txt","content":"foo\nbar"}`)
+	if write.Tool.Diff != "+ foo\n+ bar" {
+		t.Errorf("Write の Diff が設定されていない: %q", write.Tool.Diff)
+	}
+	// Write と入力の形が違う NotebookEdit / MultiEdit は対象外のまま
+	notebook := newEvent("NotebookEdit", `{"file_path":"/tmp/a.ipynb","new_source":"foo"}`)
+	if notebook.Tool.Diff != "" {
+		t.Errorf("対象外のツールに Diff が設定されている: %q", notebook.Tool.Diff)
+	}
+}
 
 func TestToolCallMatched(t *testing.T) {
 	s := mustParse(t)
